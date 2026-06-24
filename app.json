@@ -50,12 +50,12 @@
       "policy": "appVersion"
     },
     "updates": {
-      "url": "https://u.expo.dev/REPLACE_WITH_EAS_PROJECT_ID"
+      "url": "https://u.expo.dev/93a7329d-2b4a-4272-8b00-8812513e4722"
     },
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "REPLACE_WITH_EAS_PROJECT_ID"
+        "projectId": "93a7329d-2b4a-4272-8b00-8812513e4722"
       }
     }
   }
