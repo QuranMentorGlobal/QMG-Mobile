@@ -1,0 +1,47 @@
+name: Build & Submit (Android · Play Internal)
+
+# Manual trigger: open the Actions tab → "Build & Submit" → Run workflow.
+# Builds a production .aab on EAS and submits it to the Google Play **internal** track.
+# Run this when you change native code/deps, the app version, icon, or permissions.
+# For JS-only changes, prefer the instant "OTA Update" workflow instead.
+
+on:
+  workflow_dispatch:
+    inputs:
+      submit:
+        description: 'Also submit to Google Play internal track?'
+        type: boolean
+        default: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Setup EAS
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Write Play service account key
+        if: ${{ inputs.submit }}
+        run: echo '${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}' > play-service-account.json
+
+      - name: Build Android (production)
+        run: eas build --platform android --profile production --non-interactive --wait
+
+      - name: Submit to Play internal track
+        if: ${{ inputs.submit }}
+        run: eas submit --platform android --profile production --latest --non-interactive
