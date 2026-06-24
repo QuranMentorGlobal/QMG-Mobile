@@ -9,7 +9,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Screen, Loading } from '@/components/ui';
 import { EmptyCard, Initials } from '@/components/dashboard';
 import { useAuth } from '@/lib/auth';
-import { fetchTeacherDetail, fetchBookingCourses, fetchChildren, createBooking, enrollFreeCourse, type TeacherDetail, type BookingCourse, type Child } from '@/lib/db';
+import { fetchTeacherDetail, fetchBookingCourses, fetchChildren, createBooking, enrollFreeCourse, purchaseRecordedCourse, type TeacherDetail, type BookingCourse, type Child } from '@/lib/db';
 import { C, FONT, G, RADIUS, SHADOW, SPACE } from '@/lib/theme';
 
 type Tab = 'trial' | 'recorded' | 'live' | 'program';
@@ -99,12 +99,23 @@ export function BookingScreen({ basePath, checkoutPath, bookingsPath }: { basePa
   async function purchaseCourse(c: BookingCourse) {
     const studentId = role === 'parent' ? child : session?.user?.id;
     if (!studentId) { Alert.alert(role === 'parent' ? 'Select a child first' : 'Please sign in again'); return; }
+    if (studentId === teacher!.id) { Alert.alert('You cannot buy your own course.'); return; }
+    // Free course → enrol immediately
     if (c.is_free || c.price_usd === 0) {
       const res = await enrollFreeCourse({ studentId, courseId: c.id, productType: c.product_type });
       Alert.alert(res.ok ? 'Enrolled' : 'Could not enrol', res.ok ? `You're enrolled in "${c.title}".` : (res.error ?? ''));
-    } else {
-      Alert.alert('Purchase on the web', `Paid course purchase for "${c.title}" is being added to the app. For now, please complete it on quranmentorglobal.com.`);
+      return;
     }
+    // Paid recorded course → enrolment + booking → checkout (same engine as trials)
+    if (c.product_type === 'recorded') {
+      const res = await purchaseRecordedCourse({ studentId, teacherId: teacher!.id, courseId: c.id, title: c.title, priceUsd: c.price_usd });
+      if (!res.ok || !res.bookingId) { Alert.alert('Could not start purchase', res.error ?? ''); return; }
+      const params = new URLSearchParams({ bookingId: res.bookingId, amount: String(c.price_usd), course: c.title, teacher: teacher!.name, badge: 'RECORDED COURSE' });
+      router.push(`${checkoutPath}?${params.toString()}` as any);
+      return;
+    }
+    // Live / long courses are subscription-based → handle on web for now
+    Alert.alert('Subscription on the web', `"${c.title}" is a subscription course. Please complete this purchase on quranmentorglobal.com — in-app subscriptions are coming soon.`);
   }
 
   return (

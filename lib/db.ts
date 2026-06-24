@@ -776,3 +776,29 @@ export async function enrollFreeCourse(args: { studentId: string; courseId: stri
     return { ok: true };
   }, { ok: false, error: 'Could not enrol.' });
 }
+
+// Paid recorded-course purchase: mirror web — enrollment (pending) + booking
+// (is_trial:false) → checkout via /api/payments/process. Trigger confirms on pay.
+export async function purchaseRecordedCourse(args: {
+  studentId: string; teacherId: string; courseId: string; title: string; priceUsd: number;
+}): Promise<{ ok: boolean; bookingId?: string; error?: string }> {
+  return safe(async () => {
+    await (supabase as any).from('enrollments').insert({
+      course_id: args.courseId, student_id: args.studentId, product_type: 'recorded',
+      price_paid_usd: args.priceUsd, status: 'pending',
+    });
+    try {
+      await (supabase as any).from('notifications').insert({
+        user_id: args.teacherId, type: 'booking_confirmed', title: 'New Course Purchase',
+        body: `A student purchased your recorded course "${args.title}"`, href: '/platform/teacher/bookings?tab=confirmed',
+      });
+    } catch {}
+    const { data, error } = await (supabase as any).from('bookings').insert({
+      student_id: args.studentId, teacher_id: args.teacherId, course_id: args.courseId,
+      status: 'pending', start_date: new Date().toISOString().split('T')[0], session_time: '00:00',
+      recurrence: 'once', price_usd: args.priceUsd, is_trial: false,
+    }).select('id').single();
+    if (error || !data) return { ok: false, error: error?.message || 'Could not start purchase.' };
+    return { ok: true, bookingId: data.id };
+  }, { ok: false, error: 'Could not start purchase.' });
+}

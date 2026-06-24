@@ -26,10 +26,12 @@ const TEST_CARDS = [
 const brandOf = (n: string) => (n.startsWith('4') ? 'Visa' : n.startsWith('5') ? 'Mastercard' : 'Card');
 
 export function CheckoutScreen({ bookingsPath }: { bookingsPath: string }) {
-  const params = useLocalSearchParams<{ bookingId: string; amount: string; course: string; teacher: string }>();
+  const params = useLocalSearchParams<{ bookingId: string; amount: string; course: string; teacher: string; badge: string }>();
   const router = useRouter();
   const { session } = useAuth();
   const amount = parseFloat(params.amount ?? '0');
+  const isCourse = (params.badge ?? '').includes('COURSE');
+  const badgeText = params.badge ?? (amount === 0 ? 'FREE TRIAL' : 'TRIAL CLASS');
   const email = session?.user?.email ?? '';
 
   const [method, setMethod] = useState<Method>('card');
@@ -260,14 +262,17 @@ export function CheckoutScreen({ bookingsPath }: { bookingsPath: string }) {
           <View style={{ flex: 1 }}>
             <Text style={styles.orderCourse}>{params.course ?? 'Trial Class'}</Text>
             <Text style={styles.orderTeacher}>with {params.teacher ?? '—'}</Text>
-            <View style={styles.freeTrial}><Text style={styles.freeTrialText}>FREE TRIAL</Text></View>
+            <View style={styles.freeTrial}><Text style={styles.freeTrialText}>{badgeText}</Text></View>
           </View>
         </View>
         <View style={styles.summaryRow}><Text style={styles.rowK}>Subtotal</Text><Text style={styles.rowV}>${amount.toFixed(2)}</Text></View>
         <View style={styles.summaryRow}><Text style={styles.totalK}>Total</Text><Text style={styles.totalV}>${amount.toFixed(2)}</Text></View>
         <View style={styles.included}>
           <Text style={styles.includedTitle}>What's included:</Text>
-          {['Live 1-on-1 session with certified Qari', 'Session recording (coming soon)', 'Direct messaging with teacher', 'Progress tracking'].map((x) => (
+          {(isCourse
+            ? ['Lifetime access to course videos', 'Watch at your own pace', 'Direct messaging with teacher', 'Progress tracking']
+            : ['Live 1-on-1 session with certified Qari', 'Session recording (coming soon)', 'Direct messaging with teacher', 'Progress tracking']
+          ).map((x) => (
             <View key={x} style={styles.includedRow}><Ionicons name="checkmark" size={14} color={C.forest} /><Text style={styles.includedText}>{x}</Text></View>
           ))}
         </View>
