@@ -16,7 +16,7 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { C, FONT, G, RADIUS, SPACE, STATUS_COLORS } from '@/lib/theme';
+import { C, FONT, G, RADIUS, SHADOW, SPACE, STATUS_COLORS } from '@/lib/theme';
 
 export function Screen({
   children,
@@ -219,8 +219,9 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS.lg,
     padding: SPACE.md,
     borderWidth: 1,
-    borderColor: C.borderSoft,
-    marginBottom: SPACE.sm,
+    borderColor: 'rgba(17,17,17,0.04)',
+    marginBottom: SPACE.md,
+    ...SHADOW.card,
   },
   btn: { height: 52, borderRadius: RADIUS.md, alignItems: 'center', justifyContent: 'center', paddingHorizontal: SPACE.lg },
   btnGhost: { backgroundColor: 'transparent', borderWidth: 1.5, borderColor: C.forest },

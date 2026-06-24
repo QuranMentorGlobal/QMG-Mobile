@@ -152,3 +152,159 @@ export async function fetchTeacherEarnings(teacherId: string): Promise<number> {
     return 0;
   }
 }
+
+// ── Role dashboard aggregates ───────────────────────────────────────────────
+async function safe<T>(fn: () => Promise<T>, fallback: T): Promise<T> {
+  try { return await fn(); } catch { return fallback; }
+}
+
+export interface NamedLesson {
+  id: string;
+  scheduled_at: string | null;
+  duration_mins: number | null;
+  status: string | null;
+  teacherName: string;
+  teacherAvatar: string | null;
+  title: string;
+}
+
+export interface MyTeacher {
+  teacher_id: string;
+  name: string;
+  avatar_url: string | null;
+  status: string | null;
+  total: number;
+  done: number;
+}
+
+export interface StudentDash {
+  hifzLevel: number;
+  tajweedLevel: number;
+  coursesCompleted: number;
+  activeBookings: number;
+  upcoming: NamedLesson[];
+  myTeachers: MyTeacher[];
+}
+
+async function resolveTeachers(ids: string[]): Promise<Record<string, { name: string; avatar: string | null }>> {
+  const map: Record<string, { name: string; avatar: string | null }> = {};
+  const uniq = [...new Set(ids.filter(Boolean))];
+  if (!uniq.length) return map;
+  const { data } = await (supabase as any).from('public_teachers').select('id, first_name, last_name, avatar_url').in('id', uniq);
+  (data ?? []).forEach((t: any) => { map[t.id] = { name: [t.first_name, t.last_name].filter(Boolean).join(' ') || 'Teacher', avatar: t.avatar_url ?? null }; });
+  return map;
+}
+
+export async function fetchStudentDash(uid: string): Promise<StudentDash> {
+  const prof = await safe(async () => {
+    const { data } = await (supabase as any).from('profiles').select('hifz_level, tajweed_level').eq('id', uid).single();
+    return data as any;
+  }, null);
+
+  const bookings = await fetchStudentBookings(uid);
+  const activeBookings = bookings.filter((b) => ['confirmed', 'active', 'pending'].includes((b.status ?? '').toLowerCase())).length;
+
+  const coursesCompleted = await safe(async () => {
+    const { count } = await (supabase as any).from('enrollments').select('id', { count: 'exact', head: true }).eq('student_id', uid).eq('status', 'completed');
+    return count ?? 0;
+  }, 0);
+
+  const upcoming = await safe(async () => {
+    const { data } = await (supabase as any).from('lessons')
+      .select('id, scheduled_at, duration_mins, status, teacher_id')
+      .eq('student_id', uid).in('status', ['scheduled', 'live']).gte('scheduled_at', new Date().toISOString())
+      .order('scheduled_at', { ascending: true }).limit(5);
+    const rows = (data as any[]) ?? [];
+    const tmap = await resolveTeachers(rows.map((r) => r.teacher_id));
+    return rows.map((r) => ({
+      id: r.id, scheduled_at: r.scheduled_at, duration_mins: r.duration_mins, status: r.status,
+      teacherName: tmap[r.teacher_id]?.name ?? 'Teacher', teacherAvatar: tmap[r.teacher_id]?.avatar ?? null, title: 'Quran Lesson',
+    }));
+  }, []);
+
+  const myTeachers = await safe(async () => {
+    const top = bookings.slice(0, 5);
+    const tmap = await resolveTeachers(top.map((b) => b.teacher_id ?? ''));
+    return top.map((b) => ({
+      teacher_id: b.teacher_id ?? '', name: tmap[b.teacher_id ?? '']?.name ?? 'Teacher', avatar_url: tmap[b.teacher_id ?? '']?.avatar ?? null,
+      status: b.status, total: b.total_lessons ?? 0, done: b.lessons_completed ?? 0,
+    }));
+  }, []);
+
+  return {
+    hifzLevel: prof?.hifz_level ?? 0,
+    tajweedLevel: prof?.tajweed_level ?? 0,
+    coursesCompleted, activeBookings, upcoming, myTeachers,
+  };
+}
+
+export interface TeacherDash {
+  totalStudents: number;
+  todayLessons: number;
+  earnings: number;
+  pending: number;
+  taught: number;
+  upcoming: number;
+  courses: { trial: number; live: number; recorded: number; enrolments: number };
+}
+
+export async function fetchTeacherDash(uid: string): Promise<TeacherDash> {
+  const bookings = await fetchTeacherBookings(uid);
+  const ids = bookings.map((b) => b.id);
+  const [today, taught, up, earnings] = await Promise.all([
+    countTodayLessons(ids), countCompletedLessons(ids), fetchUpcomingLessons(ids), fetchTeacherEarnings(uid),
+  ]);
+  const totalStudents = new Set(bookings.filter((b) => ['confirmed', 'active'].includes((b.status ?? '').toLowerCase())).map((b) => b.student_id)).size;
+  const pending = bookings.filter((b) => (b.status ?? '').toLowerCase() === 'pending').length;
+
+  const courses = await safe(async () => {
+    const { data } = await (supabase as any).from('courses').select('id, product_type').eq('teacher_id', uid);
+    const rows = (data as any[]) ?? [];
+    const by = (t: string) => rows.filter((r) => (r.product_type ?? '') === t).length;
+    let enrolments = 0;
+    if (rows.length) {
+      const { count } = await (supabase as any).from('enrollments').select('id', { count: 'exact', head: true }).in('course_id', rows.map((r) => r.id));
+      enrolments = count ?? 0;
+    }
+    return { trial: by('trial'), live: by('live'), recorded: by('recorded'), enrolments };
+  }, { trial: 0, live: 0, recorded: 0, enrolments: 0 });
+
+  return { totalStudents, todayLessons: today, earnings, pending, taught, upcoming: up.length, courses };
+}
+
+export interface ParentDash {
+  children: Child[];
+  lessonsThisMonth: number;
+  spentThisMonth: number;
+  childStats: Record<string, { done: number; upcoming: number; attendance: number }>;
+  recorded: number;
+  live: number;
+}
+
+export async function fetchParentDash(uid: string): Promise<ParentDash> {
+  const children = await fetchChildren(uid);
+  const ids = children.map((c) => c.id);
+  if (!ids.length) return { children, lessonsThisMonth: 0, spentThisMonth: 0, childStats: {}, recorded: 0, live: 0 };
+
+  const start = new Date(); start.setDate(1); start.setHours(0, 0, 0, 0);
+
+  const lessonsThisMonth = await safe(async () => {
+    const { count } = await (supabase as any).from('lessons').select('id', { count: 'exact', head: true })
+      .in('student_id', ids).eq('status', 'completed').gte('scheduled_at', start.toISOString());
+    return count ?? 0;
+  }, 0);
+
+  const childStats = await safe(async () => {
+    const out: Record<string, { done: number; upcoming: number; attendance: number }> = {};
+    for (const c of children) {
+      const [{ count: done }, { count: up }] = await Promise.all([
+        (supabase as any).from('lessons').select('id', { count: 'exact', head: true }).eq('student_id', c.id).eq('status', 'completed'),
+        (supabase as any).from('lessons').select('id', { count: 'exact', head: true }).eq('student_id', c.id).in('status', ['scheduled', 'live']).gte('scheduled_at', new Date().toISOString()),
+      ]);
+      out[c.id] = { done: done ?? 0, upcoming: up ?? 0, attendance: 0 };
+    }
+    return out;
+  }, {});
+
+  return { children, lessonsThisMonth, spentThisMonth: 0, childStats, recorded: 0, live: 0 };
+}

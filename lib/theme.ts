@@ -26,6 +26,12 @@ export const C = {
   red: '#DC2626',
   redMuted: '#B23A2A',
   orange: '#C2410C',
+  indigo: '#4F46E5',
+  // Tile tints (stat cards)
+  tintGreen: 'rgba(22,101,52,0.08)',
+  tintGold: 'rgba(201,162,39,0.12)',
+  tintIndigo: 'rgba(79,70,229,0.08)',
+  tintCream: '#F1ECE0',
   // Lines
   border: 'rgba(201,162,39,0.18)',
   borderSoft: 'rgba(201,162,39,0.12)',
@@ -51,8 +57,27 @@ export const G = {
   drawer: ['#175E33', '#0F3A22'] as const,
 } as const;
 
-export const RADIUS = { sm: 8, md: 12, lg: 16, xl: 22, pill: 999 } as const;
-export const SPACE = { xs: 6, sm: 10, md: 16, lg: 22, xl: 30 } as const;
+export const RADIUS = { sm: 12, md: 16, lg: 20, xl: 24, sheet: 28, pill: 999 } as const;
+// 8px spacing system: sm 8 · md 16 · lg 24 · section 32 (xs 4 for hairline gaps)
+export const SPACE = { xs: 4, sm: 8, md: 16, lg: 24, section: 32, xl: 32 } as const;
+
+// Soft, premium shadows (cross-platform).
+export const SHADOW = {
+  card: {
+    shadowColor: '#0B1F14',
+    shadowOpacity: 0.06,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 2,
+  },
+  lg: {
+    shadowColor: '#0B1F14',
+    shadowOpacity: 0.12,
+    shadowRadius: 22,
+    shadowOffset: { width: 0, height: 10 },
+    elevation: 6,
+  },
+} as const;
 
 // Font family names registered in app/_layout.tsx via expo-font.
 export const FONT = {

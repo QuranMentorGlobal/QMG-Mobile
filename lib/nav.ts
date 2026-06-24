@@ -57,3 +57,34 @@ export function navForRole(role: Role): NavItem[] {
   if (role === 'parent') return parentNav;
   return studentNav; // student + admin
 }
+
+// Grouped sections for the drawer (one design, role-specific groups).
+export interface NavSection { title: string; items: NavItem[] }
+
+function pick(items: NavItem[], labels: string[]): NavItem[] {
+  return labels.map((l) => items.find((i) => i.label === l)).filter(Boolean) as NavItem[];
+}
+
+export function navSectionsForRole(role: Role): NavSection[] {
+  const all = navForRole(role);
+  if (role === 'teacher') {
+    return [
+      { title: 'MAIN', items: pick(all, ['Dashboard', 'Courses', 'Lessons', 'Bookings', 'Students']) },
+      { title: 'INSIGHTS', items: pick(all, ['Earnings', 'Analytics']) },
+      { title: 'ACCOUNT', items: pick(all, ['Messages', 'Profile']) },
+      { title: 'SUPPORT', items: pick(all, ['Support', 'Help Center']) },
+    ];
+  }
+  if (role === 'parent') {
+    return [
+      { title: 'MAIN', items: pick(all, ['Dashboard', 'Children', 'Browse Teachers']) },
+      { title: 'ACCOUNT', items: pick(all, ['Billing', 'Messages', 'Profile']) },
+      { title: 'SUPPORT', items: pick(all, ['Support']) },
+    ];
+  }
+  return [
+    { title: 'MAIN', items: pick(all, ['Dashboard', 'Browse Teachers', 'Bookings', 'Lessons']) },
+    { title: 'ACCOUNT', items: pick(all, ['Billing', 'Messages', 'Profile']) },
+    { title: 'SUPPORT', items: pick(all, ['Support']) },
+  ];
+}

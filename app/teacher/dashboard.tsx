@@ -1,140 +1,143 @@
-// app/teacher/dashboard.tsx
-// Teacher home — matches the web design: hero, colored KPI grid, profile-completion
-// ring, performance metrics, and an earnings trend chart. Data from real Supabase.
-
+// app/teacher/dashboard.tsx — premium teacher dashboard (mobile-designed).
 import { useCallback, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import { useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { Screen, Card, Loading } from '@/components/ui';
-import { HeroCard, KpiGrid, ColorKpi, CompletionRing, MetricBar, MiniBars } from '@/components/dashboard';
-import { useAuth } from '@/lib/auth';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { Screen, Loading } from '@/components/ui';
 import {
-  fetchTeacherBookings,
-  fetchUpcomingLessons,
-  countCompletedLessons,
-  countTodayLessons,
-  fetchTeacherEarnings,
-  type Booking,
-} from '@/lib/db';
+  WelcomeHero, StatGrid, StatTile, Panel, PanelHeader, BarsChart, MetricBar,
+  SectionHeader, QuickActionGrid, QuickAction, EmptyCard, QuoteCard, BadgeStrip, RadialMini,
+} from '@/components/dashboard';
+import { useAuth } from '@/lib/auth';
+import { fetchTeacherDash, type TeacherDash } from '@/lib/db';
 import { C, FONT, SPACE } from '@/lib/theme';
 
 export default function TeacherDashboard() {
   const { session } = useAuth();
+  const router = useRouter();
   const [loading, setLoading] = useState(true);
-  const [bookings, setBookings] = useState<Booking[]>([]);
-  const [today, setToday] = useState(0);
-  const [taught, setTaught] = useState(0);
-  const [earnings, setEarnings] = useState(0);
-  const [upcoming, setUpcoming] = useState(0);
+  const [d, setD] = useState<TeacherDash | null>(null);
 
   const load = useCallback(async () => {
     if (!session?.user) return;
-    const bk = await fetchTeacherBookings(session.user.id);
-    const ids = bk.map((b) => b.id);
-    const [t, done, up, money] = await Promise.all([
-      countTodayLessons(ids),
-      countCompletedLessons(ids),
-      fetchUpcomingLessons(ids),
-      fetchTeacherEarnings(session.user.id),
-    ]);
-    setBookings(bk);
-    setToday(t);
-    setTaught(done);
-    setUpcoming(up.length);
-    setEarnings(money);
+    setD(await fetchTeacherDash(session.user.id));
     setLoading(false);
   }, [session?.user?.id]);
+  useFocusEffect(useCallback(() => { load(); }, [load]));
 
-  useFocusEffect(
-    useCallback(() => {
-      load();
-    }, [load])
-  );
+  if (loading || !d) return <Screen scroll={false}><Loading label="Loading your dashboard…" /></Screen>;
 
-  if (loading) {
-    return (
-      <Screen scroll={false}>
-        <Loading label="Loading your dashboard…" />
-      </Screen>
-    );
-  }
-
-  const activeStudents = new Set(
-    bookings.filter((b) => ['confirmed', 'active'].includes((b.status ?? '').toLowerCase())).map((b) => b.student_id)
-  ).size;
-  const pending = bookings.filter((b) => (b.status ?? '').toLowerCase() === 'pending').length;
-  const trialToPaid = bookings.length ? Math.round((activeStudents / bookings.length) * 100) : 0;
-  const totalPlanned = bookings.reduce((s, b) => s + (b.total_lessons ?? 0), 0);
-  const completion = totalPlanned ? Math.round((taught / totalPlanned) * 100) : 0;
-
-  const months = lastSixMonthLabels();
-  const trend = months.map((m, i) => ({ label: m, value: i === months.length - 1 ? Math.round(earnings) : 0 }));
+  const months = lastSix();
+  const trend = months.map((m, i) => ({ label: m, value: i === months.length - 1 ? Math.round(d.earnings) : 0 }));
 
   return (
     <Screen>
-      <HeroCard eyebrow="QURANMENTOR GLOBAL" title="Share Your Knowledge" subtitle="Earn while teaching the words of Allah." />
+      <WelcomeHero eyebrow="QURANMENTOR GLOBAL" title="Welcome Back, Teacher" subtitle="Your students are waiting for your guidance." active={1} />
 
-      <KpiGrid>
-        <ColorKpi label="Total Students" value={activeStudents} tone="green" icon={<Ionicons name="people-outline" size={18} color={C.forest} />} />
-        <ColorKpi label="Today's Lessons" value={today} tone="gold" icon={<Ionicons name="book-outline" size={18} color={C.accent2} />} />
-        <ColorKpi label="This Month" value={`$${earnings.toFixed(2)}`} tone="green" icon={<Ionicons name="cash-outline" size={18} color={C.forest} />} />
-        <ColorKpi label="Pending Requests" value={pending} tone="indigo" icon={<Ionicons name="time-outline" size={18} color="#4F46E5" />} />
-      </KpiGrid>
+      <StatGrid>
+        <StatTile icon="people-outline" value={d.totalStudents} label="Total Students" tone="green" />
+        <StatTile icon="book-outline" value={d.todayLessons} label="Today's Lessons" tone="gold" />
+        <StatTile icon="cash-outline" value={`$${d.earnings.toFixed(2)}`} label="This Month" tone="green" />
+        <StatTile icon="time-outline" value={d.pending} label="Pending Requests" tone="indigo" />
+      </StatGrid>
 
-      <CompletionRing percent={0} note="Needs attention" />
-
-      <Card>
-        <View style={styles.cardHead}>
-          <Text style={styles.cardTitle}>Performance Metrics</Text>
-          <View style={styles.pill}>
-            <Text style={styles.pillText}>This Month</Text>
+      <Panel>
+        <View style={styles.completionRow}>
+          <RadialMini percent={0} size={64} color={C.gold} />
+          <View style={{ flex: 1 }}>
+            <Text style={styles.completionTitle}>Profile Completion</Text>
+            <Text style={styles.completionNote}>Needs attention</Text>
           </View>
         </View>
-        <MetricBar label="Lesson Completion" percent={completion} />
-        <MetricBar label="Trial → Paid" percent={trialToPaid} />
-        <MetricBar label="Profile Score" percent={0} />
-        <View style={styles.statsRow}>
-          <MiniStat label="Lessons Taught" value={String(taught)} />
-          <MiniStat label="Upcoming" value={String(upcoming)} />
-          <MiniStat label="Pending Payout" value={`$${earnings.toFixed(2)}`} />
-        </View>
-      </Card>
+      </Panel>
 
-      <Card>
-        <Text style={styles.cardTitle}>Earnings Trend</Text>
-        <Text style={styles.cardSub}>Net payout · last 6 months</Text>
-        <MiniBars data={trend} unit="$" />
-      </Card>
+      <Panel>
+        <View style={styles.panelHeadRow}>
+          <Text style={styles.panelTitle}>Performance Metrics</Text>
+          <View style={styles.monthPill}><Text style={styles.monthPillText}>This Month</Text></View>
+        </View>
+        <MetricBar label="Lesson Completion" percent={0} icon="checkmark-circle-outline" />
+        <MetricBar label="Trial → Paid" percent={0} icon="infinite-outline" />
+        <MetricBar label="Profile Score" percent={0} icon="person-outline" />
+        <View style={styles.miniStatsRow}>
+          <MiniStat icon="time-outline" label="Teaching Hours" value="0h" />
+          <MiniStat icon="infinite-outline" label="Trial Conversions" value="0/0" />
+        </View>
+        <View style={styles.miniStatsRow}>
+          <MiniStat icon="card-outline" label="Pending Payout" value={`$${d.earnings.toFixed(2)}`} />
+          <MiniStat icon="star-outline" label="Avg Rating" value="—" />
+        </View>
+      </Panel>
+
+      <Panel>
+        <PanelHeader icon="bar-chart-outline" title="Earnings Trend" subtitle="Net payout · last 6 months" />
+        <BarsChart data={trend} unit="$" />
+      </Panel>
+
+      <SectionHeader title="Quick Actions" />
+      <QuickActionGrid>
+        <QuickAction icon="calendar-outline" label="Bookings" onPress={() => router.push('/teacher/bookings')} />
+        <QuickAction icon="play-circle-outline" label="Course Studio" onPress={() => router.push('/teacher/courses')} />
+        <QuickAction icon="cash-outline" label="Earnings" onPress={() => router.push('/teacher/earnings')} />
+        <QuickAction icon="bar-chart-outline" label="Analytics" onPress={() => router.push('/teacher/analytics')} />
+        <QuickAction icon="person-outline" label="Profile" onPress={() => router.push('/teacher/profile')} />
+      </QuickActionGrid>
+
+      <SectionHeader title="Your Courses" actionLabel="Manage" onAction={() => router.push('/teacher/courses')} />
+      <StatGrid>
+        <StatTile icon="ellipse-outline" value={d.courses.trial} label="Trial Classes" tone="gold" />
+        <StatTile icon="videocam-outline" value={d.courses.live} label="Live Courses" tone="indigo" />
+        <StatTile icon="cloud-upload-outline" value={d.courses.recorded} label="Recorded" tone="green" />
+        <StatTile icon="people-outline" value={d.courses.enrolments} label="Enrolments" tone="cream" />
+      </StatGrid>
+
+      <SectionHeader title="Your Badges" />
+      <BadgeStrip earned={0} body="Badges are awarded automatically as you get verified and build your track record." />
+
+      <SectionHeader title="Pending Requests" />
+      <EmptyCard icon="book-outline" title="No pending requests" body="New booking requests will appear here." />
+
+      <SectionHeader title="Upcoming Lessons" />
+      {d.upcoming === 0 ? (
+        <EmptyCard icon="calendar-outline" title="No upcoming lessons" body="Confirmed bookings generate lessons here." />
+      ) : (
+        <Panel><Text style={styles.panelTitle}>{d.upcoming} upcoming lesson{d.upcoming > 1 ? 's' : ''}</Text></Panel>
+      )}
+
+      <QuoteCard icon="book-outline" eyebrow="QURANIC AYAH" arabic="وَعَلَّمَكَ مَا لَمْ تَكُن تَعْلَمُ ۚ وَكَانَ فَضْلُ اللَّهِ عَلَيْكَ عَظِيمًا" quote="And He taught you what you did not know. And the favour of Allah upon you is ever great." source="Surah An-Nisa 4:113" active={2} />
     </Screen>
   );
 }
 
-function MiniStat({ label, value }: { label: string; value: string }) {
+function MiniStat({ icon, label, value }: { icon: keyof typeof Ionicons.glyphMap; label: string; value: string }) {
   return (
     <View style={styles.miniStat}>
-      <Text style={styles.miniStatValue}>{value}</Text>
-      <Text style={styles.miniStatLabel}>{label}</Text>
+      <Ionicons name={icon} size={16} color={C.gold} />
+      <View style={{ flex: 1 }}>
+        <Text style={styles.miniLabel}>{label}</Text>
+        <Text style={styles.miniValue}>{value}</Text>
+      </View>
     </View>
   );
 }
 
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-function lastSixMonthLabels(): string[] {
-  const out: string[] = [];
-  const now = new Date().getMonth();
-  for (let i = 5; i >= 0; i--) out.push(MONTHS[(now - i + 12) % 12]);
+function lastSix(): string[] {
+  const M = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const now = new Date().getMonth(); const out: string[] = [];
+  for (let i = 5; i >= 0; i--) out.push(M[(now - i + 12) % 12]);
   return out;
 }
 
 const styles = StyleSheet.create({
-  cardHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: SPACE.md },
-  cardTitle: { fontFamily: FONT.displayBold, fontSize: 16, color: C.ink },
-  cardSub: { fontFamily: FONT.body, fontSize: 12, color: C.muted, marginTop: 2, marginBottom: SPACE.sm },
-  pill: { backgroundColor: 'rgba(201,162,39,0.12)', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 },
-  pillText: { fontFamily: FONT.bodySemi, fontSize: 11, color: C.accent2 },
-  statsRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: SPACE.sm, paddingTop: SPACE.md, borderTopWidth: 1, borderTopColor: C.borderSoft },
-  miniStat: { flex: 1 },
-  miniStatValue: { fontFamily: FONT.displayBold, fontSize: 17, color: C.ink },
-  miniStatLabel: { fontFamily: FONT.body, fontSize: 11, color: C.muted, marginTop: 2 },
+  completionRow: { flexDirection: 'row', alignItems: 'center', gap: SPACE.md },
+  completionTitle: { fontFamily: FONT.bodyBold, fontSize: 16, color: C.ink },
+  completionNote: { fontFamily: FONT.bodyMed, fontSize: 13, color: C.red, marginTop: 3 },
+  panelHeadRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: SPACE.md },
+  panelTitle: { fontFamily: FONT.bodyBold, fontSize: 16, color: C.ink },
+  monthPill: { backgroundColor: C.tintGold, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 5 },
+  monthPillText: { fontFamily: FONT.bodySemi, fontSize: 11, color: C.accent2 },
+  miniStatsRow: { flexDirection: 'row', gap: SPACE.md, marginTop: SPACE.xs },
+  miniStat: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8, paddingTop: SPACE.sm, borderTopWidth: 1, borderTopColor: C.borderSoft },
+  miniLabel: { fontFamily: FONT.body, fontSize: 11, color: C.muted },
+  miniValue: { fontFamily: FONT.bodyBold, fontSize: 15, color: C.ink, marginTop: 1 },
 });
