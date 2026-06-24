@@ -248,3 +248,35 @@ const styles = StyleSheet.create({
   muted: { fontFamily: FONT.body, fontSize: 13, color: C.muted },
   emptyTitle: { fontFamily: FONT.bodyBold, fontSize: 15, color: C.text },
 });
+
+export function PageTitle({ title, subtitle }: { title: string; subtitle?: string }) {
+  return (
+    <View style={{ marginTop: SPACE.xs, marginBottom: SPACE.md }}>
+      <Text style={{ fontFamily: FONT.displayBold, fontSize: 24, color: C.ink }}>{title}</Text>
+      {subtitle ? <Text style={{ fontFamily: FONT.body, fontSize: 13, color: C.muted, marginTop: 2 }}>{subtitle}</Text> : null}
+    </View>
+  );
+}
+
+export function Segmented({ options, value, onChange }: { options: string[]; value: string; onChange: (v: string) => void }) {
+  return (
+    <View style={segStyles.wrap}>
+      {options.map((o) => {
+        const active = o === value;
+        return (
+          <Pressable key={o} onPress={() => onChange(o)} style={[segStyles.seg, active && segStyles.segActive]}>
+            <Text style={[segStyles.segText, active && segStyles.segTextActive]}>{o}</Text>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
+
+const segStyles = StyleSheet.create({
+  wrap: { flexDirection: 'row', backgroundColor: 'rgba(17,17,17,0.05)', borderRadius: RADIUS.md, padding: 4, marginBottom: SPACE.md },
+  seg: { flex: 1, paddingVertical: 9, borderRadius: RADIUS.sm, alignItems: 'center' },
+  segActive: { backgroundColor: C.white, ...SHADOW.card },
+  segText: { fontFamily: FONT.bodySemi, fontSize: 13, color: C.muted },
+  segTextActive: { color: C.forest },
+});

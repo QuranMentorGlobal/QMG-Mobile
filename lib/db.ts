@@ -308,3 +308,122 @@ export async function fetchParentDash(uid: string): Promise<ParentDash> {
 
   return { children, lessonsThisMonth, spentThisMonth: 0, childStats, recorded: 0, live: 0 };
 }
+
+// ── Student inner pages ─────────────────────────────────────────────────────
+
+export interface FullLesson {
+  id: string;
+  scheduled_at: string | null;
+  duration_mins: number | null;
+  status: string | null;
+  daily_room_url: string | null;
+  teacherName: string;
+  teacherAvatar: string | null;
+}
+
+export async function fetchStudentLessons(uid: string): Promise<FullLesson[]> {
+  const { data } = await (supabase as any).from('lessons')
+    .select('id, scheduled_at, duration_mins, status, daily_room_url, teacher_id')
+    .eq('student_id', uid).order('scheduled_at', { ascending: false }).limit(100);
+  const rows = (data as any[]) ?? [];
+  const tmap = await resolveTeachers(rows.map((r) => r.teacher_id));
+  return rows.map((r) => ({
+    id: r.id, scheduled_at: r.scheduled_at, duration_mins: r.duration_mins, status: r.status, daily_room_url: r.daily_room_url,
+    teacherName: tmap[r.teacher_id]?.name ?? 'Teacher', teacherAvatar: tmap[r.teacher_id]?.avatar ?? null,
+  }));
+}
+
+export interface Payment { id: string; gross_amount_usd: number; status: string; payment_type: string | null; description: string | null; created_at: string; }
+export interface RefundRow { id: string; amount_usd: number; reason: string | null; created_at: string; }
+
+export async function fetchPayments(uid: string): Promise<Payment[]> {
+  return safe(async () => {
+    const { data } = await (supabase as any).from('payments')
+      .select('id, gross_amount_usd, status, payment_type, description, created_at')
+      .eq('student_id', uid).eq('status', 'succeeded').order('created_at', { ascending: false }).limit(50);
+    return (data as Payment[]) ?? [];
+  }, []);
+}
+
+export async function fetchRefunds(uid: string): Promise<RefundRow[]> {
+  return safe(async () => {
+    const { data } = await (supabase as any).from('booking_refunds')
+      .select('id, amount_usd, reason, created_at').eq('student_id', uid).order('created_at', { ascending: false }).limit(50);
+    return (data as RefundRow[]) ?? [];
+  }, []);
+}
+
+export interface Conversation {
+  id: string; otherName: string; otherAvatar: string | null; otherRole: string;
+  last_message: string | null; last_message_at: string | null; unread: number;
+}
+
+export async function fetchConversations(uid: string): Promise<Conversation[]> {
+  return safe(async () => {
+    const { data } = await (supabase as any).from('conversations')
+      .select('id, participant_1, participant_2, last_message, last_message_at')
+      .or(`participant_1.eq.${uid},participant_2.eq.${uid}`)
+      .order('last_message_at', { ascending: false, nullsFirst: false }).limit(50);
+    const rows = (data as any[]) ?? [];
+    if (!rows.length) return [];
+    const otherIds = rows.map((c) => (c.participant_1 === uid ? c.participant_2 : c.participant_1));
+    const { data: profs } = await (supabase as any).from('profiles').select('id, first_name, last_name, role, avatar_url').in('id', otherIds);
+    const pmap: Record<string, any> = {};
+    (profs ?? []).forEach((p: any) => { pmap[p.id] = p; });
+    const { data: unreadRows } = await (supabase as any).from('messages')
+      .select('conversation_id').in('conversation_id', rows.map((c) => c.id)).eq('is_read', false).neq('sender_id', uid);
+    const unreadMap: Record<string, number> = {};
+    (unreadRows ?? []).forEach((m: any) => { unreadMap[m.conversation_id] = (unreadMap[m.conversation_id] ?? 0) + 1; });
+    return rows.map((c) => {
+      const oid = c.participant_1 === uid ? c.participant_2 : c.participant_1;
+      const p = pmap[oid] ?? {};
+      return {
+        id: c.id, otherName: [p.first_name, p.last_name].filter(Boolean).join(' ') || 'User', otherAvatar: p.avatar_url ?? null,
+        otherRole: p.role ?? '', last_message: c.last_message, last_message_at: c.last_message_at, unread: unreadMap[c.id] ?? 0,
+      };
+    });
+  }, []);
+}
+
+export interface ChatMessage { id: string; sender_id: string; body: string; created_at: string; }
+
+export async function fetchMessages(convId: string): Promise<ChatMessage[]> {
+  const { data } = await (supabase as any).from('messages')
+    .select('id, sender_id, body, created_at').eq('conversation_id', convId).order('created_at', { ascending: true }).limit(200);
+  return (data as ChatMessage[]) ?? [];
+}
+
+export async function markRead(convId: string, uid: string): Promise<void> {
+  await safe(async () => {
+    await (supabase as any).from('messages').update({ is_read: true }).eq('conversation_id', convId).neq('sender_id', uid);
+    return null;
+  }, null);
+}
+
+export async function sendMessage(convId: string, uid: string, body: string): Promise<boolean> {
+  return safe(async () => {
+    const { error } = await (supabase as any).from('messages').insert({ conversation_id: convId, sender_id: uid, body });
+    if (error) return false;
+    await (supabase as any).from('conversations').update({ last_message: body, last_message_at: new Date().toISOString() }).eq('id', convId);
+    return true;
+  }, false);
+}
+
+export interface Ticket { id: string; subject: string; category: string; message: string; status: string; priority: string; created_at: string; }
+
+export async function fetchTickets(uid: string): Promise<Ticket[]> {
+  return safe(async () => {
+    const { data } = await (supabase as any).from('support_tickets')
+      .select('id, subject, category, message, status, priority, created_at')
+      .eq('user_id', uid).order('created_at', { ascending: false }).limit(50);
+    return (data as Ticket[]) ?? [];
+  }, []);
+}
+
+export async function createTicket(uid: string, t: { subject: string; category: string; message: string; priority: string }): Promise<boolean> {
+  return safe(async () => {
+    const { error } = await (supabase as any).from('support_tickets')
+      .insert({ user_id: uid, subject: t.subject, category: t.category, message: t.message, priority: t.priority, status: 'open' });
+    return !error;
+  }, false);
+}
