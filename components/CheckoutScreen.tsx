@@ -8,7 +8,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { Screen, Loading } from '@/components/ui';
 import { useAuth } from '@/lib/auth';
-import { processCardPayment } from '@/lib/db';
+import { processCardPayment, walletInitiate } from '@/lib/db';
 import { C, FONT, G, RADIUS, SHADOW, SPACE } from '@/lib/theme';
 
 type Method = 'card' | 'jazzcash' | 'easypaisa' | 'bank';
@@ -39,14 +39,23 @@ export function CheckoutScreen({ bookingsPath }: { bookingsPath: string }) {
   const [name, setName] = useState('');
   const [billEmail, setBillEmail] = useState(email);
   const [zip, setZip] = useState('');
-  const [step, setStep] = useState<'form' | 'processing' | 'success' | 'declined'>('form');
+  const [walletNumber, setWalletNumber] = useState('');
+  const [step, setStep] = useState<'form' | 'processing' | 'success' | 'declined' | 'pending'>('form');
   const [err, setErr] = useState<string | null>(null);
 
   const last4 = useMemo(() => card.replace(/\s/g, '').slice(-4), [card]);
 
   async function pay() {
     setErr(null);
-    if (method !== 'card') { setErr('Wallet & bank transfer are available on the website for now.'); return; }
+    if (method === 'bank') { setStep('pending'); return; }
+    if (method === 'jazzcash' || method === 'easypaisa') {
+      if (walletNumber.trim().length < 10) { setErr('Enter your wallet mobile number.'); return; }
+      setStep('processing');
+      const res = await walletInitiate({ bookingId: params.bookingId!, provider: method, amount, walletNumber: walletNumber.trim() });
+      if (res.ok) setStep('pending');
+      else { setErr(res.error ?? 'Could not initiate payment.'); setStep('form'); }
+      return;
+    }
     const raw = card.replace(/\s/g, '');
     if (raw.length < 12 || !name.trim()) { setErr('Enter a valid card number and cardholder name.'); return; }
     setStep('processing');
@@ -86,6 +95,24 @@ export function CheckoutScreen({ bookingsPath }: { bookingsPath: string }) {
               <Text style={styles.bookText}>View My Bookings →</Text>
             </LinearGradient>
           </Pressable>
+        </View>
+      </Screen>
+    );
+  }
+
+  if (step === 'pending') {
+    const isBank = method === 'bank';
+    return (
+      <Screen>
+        <View style={styles.declined}>
+          <View style={[styles.declinedIcon, { backgroundColor: C.gold }]}><Ionicons name={isBank ? 'business' : 'time'} size={30} color={C.ink} /></View>
+          <Text style={styles.declinedTitle}>{isBank ? 'Booking Reserved' : 'Payment Initiated'}</Text>
+          <Text style={styles.declinedSub}>
+            {isBank
+              ? 'Your trial is reserved as pending. Complete the bank transfer and our team will confirm your booking once received.'
+              : `We've sent a payment request to your ${method === 'jazzcash' ? 'JazzCash' : 'Easypaisa'} wallet. Approve it there — your booking confirms automatically once payment clears.`}
+          </Text>
+          <Pressable onPress={() => router.replace(`${bookingsPath}?tab=pending` as any)} style={styles.retryBtn}><Text style={styles.retryText}>View My Bookings</Text></Pressable>
         </View>
       </Screen>
     );
@@ -200,9 +227,28 @@ export function CheckoutScreen({ bookingsPath }: { bookingsPath: string }) {
           </Pressable>
           <Text style={styles.ssl}>🔒 SSL Secured  ·  256-bit encryption  ·  PCI compliant</Text>
         </>
+      ) : method === 'bank' ? (
+        <View style={styles.card}>
+          <Text style={styles.cardSectionTitle}>Bank Transfer</Text>
+          <Text style={styles.methodDesc}>Reserve your trial now and transfer to our account. We confirm your booking once payment is received.</Text>
+          <Pressable onPress={pay} style={{ marginTop: SPACE.md }}>
+            <LinearGradient colors={['#166534', '#C9A227']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.payBtn}>
+              <Text style={styles.payText}>Reserve — ${amount.toFixed(2)}</Text>
+            </LinearGradient>
+          </Pressable>
+        </View>
       ) : (
         <View style={styles.card}>
-          <Text style={styles.methodDesc}>This payment method is available on the website. Card payment works here in the app.</Text>
+          <Text style={styles.cardSectionTitle}>{method === 'jazzcash' ? 'JazzCash' : 'Easypaisa'} Wallet</Text>
+          <Text style={styles.methodDesc}>Enter your wallet mobile number. You'll approve the payment in your wallet app.</Text>
+          <Text style={styles.fieldLabel}>WALLET MOBILE NUMBER</Text>
+          <TextInput value={walletNumber} onChangeText={setWalletNumber} placeholder="03XX XXXXXXX" placeholderTextColor={C.faint} keyboardType="phone-pad" style={styles.input} />
+          {err ? <Text style={styles.err}>{err}</Text> : null}
+          <Pressable onPress={pay}>
+            <LinearGradient colors={['#166534', '#C9A227']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.payBtn}>
+              <Text style={styles.payText}>Pay ${amount.toFixed(2)} with {method === 'jazzcash' ? 'JazzCash' : 'Easypaisa'}</Text>
+            </LinearGradient>
+          </Pressable>
         </View>
       )}
 

@@ -2,14 +2,14 @@
 // Custom JS date & time picker (no native module → OTA-safe). Booking = direct
 // Supabase insert (status 'pending'); free → bookings, paid → checkout.
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { Screen, Loading } from '@/components/ui';
 import { EmptyCard, Initials } from '@/components/dashboard';
 import { useAuth } from '@/lib/auth';
-import { fetchTeacherDetail, fetchBookingCourses, fetchChildren, createBooking, type TeacherDetail, type BookingCourse, type Child } from '@/lib/db';
+import { fetchTeacherDetail, fetchBookingCourses, fetchChildren, createBooking, enrollFreeCourse, type TeacherDetail, type BookingCourse, type Child } from '@/lib/db';
 import { C, FONT, G, RADIUS, SHADOW, SPACE } from '@/lib/theme';
 
 type Tab = 'trial' | 'recorded' | 'live' | 'program';
@@ -93,6 +93,17 @@ export function BookingScreen({ basePath, checkoutPath, bookingsPath }: { basePa
     } else {
       const params = new URLSearchParams({ bookingId: res.bookingId, amount: String(trialCourse.price_usd), course: trialCourse.title, teacher: teacher!.name });
       router.push(`${checkoutPath}?${params.toString()}` as any);
+    }
+  }
+
+  async function purchaseCourse(c: BookingCourse) {
+    const studentId = role === 'parent' ? child : session?.user?.id;
+    if (!studentId) { Alert.alert(role === 'parent' ? 'Select a child first' : 'Please sign in again'); return; }
+    if (c.is_free || c.price_usd === 0) {
+      const res = await enrollFreeCourse({ studentId, courseId: c.id, productType: c.product_type });
+      Alert.alert(res.ok ? 'Enrolled' : 'Could not enrol', res.ok ? `You're enrolled in "${c.title}".` : (res.error ?? ''));
+    } else {
+      Alert.alert('Purchase on the web', `Paid course purchase for "${c.title}" is being added to the app. For now, please complete it on quranmentorglobal.com.`);
     }
   }
 
@@ -220,13 +231,13 @@ export function BookingScreen({ basePath, checkoutPath, bookingsPath }: { basePa
           </>
         )
       ) : (
-        <CourseList list={tab === 'recorded' ? courses.recorded : tab === 'live' ? courses.live : courses.program} kind={tab} />
+        <CourseList list={tab === 'recorded' ? courses.recorded : tab === 'live' ? courses.live : courses.program} kind={tab} onPurchase={purchaseCourse} />
       )}
     </Screen>
   );
 }
 
-function CourseList({ list, kind }: { list: BookingCourse[]; kind: Tab }) {
+function CourseList({ list, kind, onPurchase }: { list: BookingCourse[]; kind: Tab; onPurchase: (c: BookingCourse) => void }) {
   if (list.length === 0) return <EmptyCard icon="library-outline" title="Nothing here yet" body="This teacher hasn't published courses of this type." />;
   return (
     <>
@@ -242,7 +253,7 @@ function CourseList({ list, kind }: { list: BookingCourse[]; kind: Tab }) {
             <Text style={styles.courseMeta}>All levels · {c.lessons} lesson{c.lessons === 1 ? '' : 's'}</Text>
             <View style={styles.courseFooter}>
               <Text style={styles.coursePrice}>{c.is_free ? 'Free' : `$${c.price_usd}`}</Text>
-              <View style={styles.purchaseBtn}><Text style={styles.purchaseText}>Purchase</Text></View>
+              <Pressable onPress={() => onPurchase(c)} style={styles.purchaseBtn}><Text style={styles.purchaseText}>{c.is_free ? 'Enrol Free' : 'Purchase'}</Text></Pressable>
             </View>
           </View>
         </View>

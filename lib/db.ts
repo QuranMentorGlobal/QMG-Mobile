@@ -385,11 +385,11 @@ export async function fetchConversations(uid: string): Promise<Conversation[]> {
   }, []);
 }
 
-export interface ChatMessage { id: string; sender_id: string; body: string; created_at: string; }
+export interface ChatMessage { id: string; sender_id: string; body: string; created_at: string; attachment_url?: string | null; attachment_type?: string | null; attachment_name?: string | null; }
 
 export async function fetchMessages(convId: string): Promise<ChatMessage[]> {
   const { data } = await (supabase as any).from('messages')
-    .select('id, sender_id, body, created_at').eq('conversation_id', convId).order('created_at', { ascending: true }).limit(200);
+    .select('id, sender_id, body, created_at, attachment_url, attachment_type, attachment_name').eq('conversation_id', convId).order('created_at', { ascending: true }).limit(200);
   return (data as ChatMessage[]) ?? [];
 }
 
@@ -701,4 +701,78 @@ export async function processCardPayment(args: {
   } catch (e: any) {
     return { ok: false, error: e?.message || 'Network error during payment.' };
   }
+}
+
+// ── Attachments · Notifications · Wallet · Free enrolment ────────────────────
+
+export async function uploadToAttachments(uri: string, contentType: string, ext: string): Promise<string | null> {
+  return safe(async () => {
+    const resp = await fetch(uri);
+    const blob = await resp.blob();
+    const path = `mobile/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+    const { error } = await (supabase as any).storage.from('attachments').upload(path, blob, { contentType, upsert: false });
+    if (error) return null;
+    const { data } = (supabase as any).storage.from('attachments').getPublicUrl(path);
+    return data?.publicUrl ?? null;
+  }, null);
+}
+
+export async function sendAttachmentMessage(convId: string, uid: string, att: { url: string; type: string; name: string }, body = ''): Promise<boolean> {
+  return safe(async () => {
+    const { error } = await (supabase as any).from('messages').insert({
+      conversation_id: convId, sender_id: uid, body,
+      attachment_url: att.url, attachment_type: att.type, attachment_name: att.name,
+    });
+    if (error) return false;
+    await (supabase as any).from('conversations').update({ last_message: att.type.startsWith('audio') ? '🎤 Voice note' : att.type.startsWith('image') ? '📷 Photo' : '📎 Attachment', last_message_at: new Date().toISOString() }).eq('id', convId);
+    return true;
+  }, false);
+}
+
+export interface AppNotification { id: string; type: string | null; title: string | null; body: string | null; href: string | null; is_read: boolean; created_at: string; }
+
+export async function fetchNotifications(uid: string): Promise<AppNotification[]> {
+  return safe(async () => {
+    const { data } = await (supabase as any).from('notifications').select('*').eq('user_id', uid).order('created_at', { ascending: false }).limit(60);
+    return ((data as any[]) ?? []).map((n) => ({ id: n.id, type: n.type ?? null, title: n.title ?? null, body: n.body ?? null, href: n.href ?? null, is_read: !!n.is_read, created_at: n.created_at }));
+  }, []);
+}
+
+export async function markNotificationRead(id: string): Promise<void> {
+  await safe(async () => { await (supabase as any).from('notifications').update({ is_read: true }).eq('id', id); return null; }, null);
+}
+export async function markAllNotificationsRead(uid: string): Promise<void> {
+  await safe(async () => { await (supabase as any).from('notifications').update({ is_read: true }).eq('user_id', uid).eq('is_read', false); return null; }, null);
+}
+export async function countUnreadNotifications(uid: string): Promise<number> {
+  return safe(async () => {
+    const { count } = await (supabase as any).from('notifications').select('id', { count: 'exact', head: true }).eq('user_id', uid).eq('is_read', false);
+    return count ?? 0;
+  }, 0);
+}
+
+export async function walletInitiate(args: { bookingId: string; provider: 'jazzcash' | 'easypaisa'; amount: number; walletNumber: string }): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const res = await fetch(`${API_BASE}/api/payments/wallet/initiate`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ bookingId: args.bookingId, provider: args.provider, amount: Math.round(args.amount * 100), walletNumber: args.walletNumber }),
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) return { ok: false, error: json.error || 'Could not initiate wallet payment.' };
+    return { ok: true };
+  } catch (e: any) {
+    return { ok: false, error: e?.message || 'Network error.' };
+  }
+}
+
+export async function enrollFreeCourse(args: { studentId: string; courseId: string; productType: string; }): Promise<{ ok: boolean; error?: string }> {
+  return safe(async () => {
+    const { error } = await (supabase as any).from('enrollments').insert({
+      student_id: args.studentId, course_id: args.courseId,
+      product_type: args.productType === 'program' ? 'live' : args.productType,
+      price_paid_usd: 0, status: 'active',
+    });
+    if (error) return { ok: false, error: 'Could not enrol (you may already be enrolled).' };
+    return { ok: true };
+  }, { ok: false, error: 'Could not enrol.' });
 }

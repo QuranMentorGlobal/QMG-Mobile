@@ -8,10 +8,12 @@ import {
   Alert, Animated, Dimensions, Image, Modal, Pressable, ScrollView, StyleSheet, Text, View,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { BlurView } from 'expo-blur';
 import { Redirect, usePathname, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth, homeRouteForRole } from '@/lib/auth';
+import { countUnreadNotifications } from '@/lib/db';
 import type { Role } from '@/lib/supabase';
 import { navSectionsForRole, PORTAL_LABEL } from '@/lib/nav';
 import { Loading } from '@/components/ui';
@@ -30,7 +32,15 @@ function greetingFor(): string {
 
 export function RoleShell({ role, children }: { role: Role; children: React.ReactNode }) {
   const { loading, session, role: userRole, profile } = useAuth();
+  const router = useRouter();
   const [open, setOpen] = useState(false);
+  const [unread, setUnread] = useState(0);
+
+  useEffect(() => {
+    let on = true;
+    if (session?.user) countUnreadNotifications(session.user.id).then((n) => { if (on) setUnread(n); });
+    return () => { on = false; };
+  }, [session?.user?.id, open]);
 
   if (loading) return <View style={{ flex: 1, backgroundColor: C.cream }}><Loading /></View>;
   if (!session) return <Redirect href="/auth/login" />;
@@ -48,9 +58,15 @@ export function RoleShell({ role, children }: { role: Role; children: React.Reac
               <Image source={EMBLEM} style={styles.emblemSm} resizeMode="contain" />
               <Text style={styles.brandText}>QuranMentor<Text style={{ color: C.gold }}>Global</Text></Text>
             </View>
-            <Pressable onPress={() => setOpen(true)} hitSlop={10} style={styles.hamburger}>
-              <Ionicons name="menu" size={24} color={C.white} />
-            </Pressable>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <Pressable onPress={() => router.push(`/${role}/notifications` as any)} hitSlop={8} style={styles.hamburger}>
+                <Ionicons name="notifications-outline" size={22} color={C.white} />
+                {unread > 0 ? <View style={styles.bellBadge}><Text style={styles.bellBadgeText}>{unread > 9 ? '9+' : unread}</Text></View> : null}
+              </Pressable>
+              <Pressable onPress={() => setOpen(true)} hitSlop={10} style={styles.hamburger}>
+                <Ionicons name="menu" size={24} color={C.white} />
+              </Pressable>
+            </View>
           </View>
           <Text style={styles.greeting}>{greetingFor()}, {name} 👋</Text>
         </SafeAreaView>
@@ -85,7 +101,6 @@ function DrawerMenu({ role, open, onClose }: { role: Role; open: boolean; onClos
   if (!mounted) return null;
 
   const translateX = anim.interpolate({ inputRange: [0, 1], outputRange: [PANEL_W + 40, 0] });
-  const backdrop = anim.interpolate({ inputRange: [0, 1], outputRange: [0, 0.55] });
 
   function go(route: string) {
     onClose();
@@ -104,8 +119,9 @@ function DrawerMenu({ role, open, onClose }: { role: Role; open: boolean; onClos
   return (
     <Modal visible transparent animationType="none" onRequestClose={onClose} statusBarTranslucent>
       <View style={{ flex: 1, flexDirection: 'row' }}>
-        <Animated.View style={[styles.backdrop, { opacity: backdrop }]}>
-          <Pressable style={{ flex: 1 }} onPress={onClose} />
+        <Animated.View style={[StyleSheet.absoluteFill, { opacity: anim }]}>
+          <BlurView intensity={28} tint="dark" style={StyleSheet.absoluteFill} />
+          <Pressable style={[StyleSheet.absoluteFill, styles.scrim]} onPress={onClose} />
         </Animated.View>
         <Animated.View style={[styles.panel, { width: PANEL_W, transform: [{ translateX }] }]}>
           <LinearGradient colors={G.drawer} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} style={styles.panelInner}>
@@ -174,9 +190,11 @@ const styles = StyleSheet.create({
   emblemSm: { width: 26, height: 26 },
   brandText: { color: C.white, fontFamily: FONT.displayBold, fontSize: 17 },
   hamburger: { width: 40, height: 40, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.12)', alignItems: 'center', justifyContent: 'center' },
+  bellBadge: { position: 'absolute', top: 4, right: 4, minWidth: 16, height: 16, borderRadius: 8, backgroundColor: C.gold, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 3 },
+  bellBadgeText: { color: C.ink, fontFamily: FONT.bodyBold, fontSize: 9 },
   greeting: { color: C.goldLight, fontFamily: FONT.bodySemi, fontSize: 13, paddingHorizontal: SPACE.md, paddingBottom: 12, paddingTop: 4 },
 
-  backdrop: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: '#000' },
+  scrim: { backgroundColor: 'rgba(0,0,0,0.35)' },
   panel: { position: 'absolute', right: 0, top: 0, bottom: 0, borderTopLeftRadius: RADIUS.sheet, borderBottomLeftRadius: RADIUS.sheet, overflow: 'hidden', shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 24, shadowOffset: { width: -8, height: 0 }, elevation: 16 },
   panelInner: { flex: 1 },
   head: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: SPACE.lg, paddingTop: SPACE.md },
