@@ -427,3 +427,110 @@ export async function createTicket(uid: string, t: { subject: string; category: 
     return !error;
   }, false);
 }
+
+// ── Teacher inner pages ─────────────────────────────────────────────────────
+
+async function resolveStudentsMap(ids: string[]): Promise<Record<string, { name: string; avatar: string | null }>> {
+  const map: Record<string, { name: string; avatar: string | null }> = {};
+  const uniq = [...new Set(ids.filter(Boolean))];
+  if (!uniq.length) return map;
+  const { data } = await (supabase as any).from('profiles').select('id, first_name, last_name, avatar_url').in('id', uniq);
+  (data ?? []).forEach((p: any) => { map[p.id] = { name: [p.first_name, p.last_name].filter(Boolean).join(' ') || 'Student', avatar: p.avatar_url ?? null }; });
+  return map;
+}
+
+export interface TeacherCourse {
+  id: string; title: string; product_type: string | null; price_usd: number | null; is_free: boolean | null;
+  is_active: boolean | null; thumbnail_url: string | null; category: string | null; enrolments: number;
+}
+
+export async function fetchTeacherCourses(uid: string): Promise<TeacherCourse[]> {
+  return safe(async () => {
+    const { data } = await (supabase as any).from('courses').select('*').eq('teacher_id', uid).order('created_at', { ascending: false });
+    const rows = (data as any[]) ?? [];
+    const counts: Record<string, number> = {};
+    if (rows.length) {
+      const { data: enr } = await (supabase as any).from('enrollments').select('course_id').in('course_id', rows.map((r) => r.id));
+      (enr ?? []).forEach((e: any) => { counts[e.course_id] = (counts[e.course_id] ?? 0) + 1; });
+    }
+    return rows.map((c) => ({
+      id: c.id, title: c.title ?? 'Untitled course', product_type: c.product_type ?? null, price_usd: c.price_usd ?? null,
+      is_free: c.is_free ?? null, is_active: c.is_active ?? null, thumbnail_url: c.thumbnail_url ?? null, category: c.category ?? null,
+      enrolments: counts[c.id] ?? 0,
+    }));
+  }, []);
+}
+
+export interface TeacherLesson {
+  id: string; scheduled_at: string | null; duration_mins: number | null; status: string | null; daily_room_url: string | null;
+  studentName: string; studentAvatar: string | null;
+}
+
+export async function fetchTeacherLessons(uid: string): Promise<TeacherLesson[]> {
+  const { data } = await (supabase as any).from('lessons')
+    .select('id, scheduled_at, duration_mins, status, daily_room_url, student_id')
+    .eq('teacher_id', uid).order('scheduled_at', { ascending: false }).limit(100);
+  const rows = (data as any[]) ?? [];
+  const smap = await resolveStudentsMap(rows.map((r) => r.student_id));
+  return rows.map((r) => ({
+    id: r.id, scheduled_at: r.scheduled_at, duration_mins: r.duration_mins, status: r.status, daily_room_url: r.daily_room_url,
+    studentName: smap[r.student_id]?.name ?? 'Student', studentAvatar: smap[r.student_id]?.avatar ?? null,
+  }));
+}
+
+export interface TeacherStudent {
+  id: string; name: string; avatar: string | null; bookings: number; active: number; trials: number;
+}
+
+export async function fetchTeacherStudents(uid: string): Promise<TeacherStudent[]> {
+  return safe(async () => {
+    const { data } = await (supabase as any).from('bookings').select('id, status, is_trial, student_id').eq('teacher_id', uid);
+    const rows = (data as any[]) ?? [];
+    const smap = await resolveStudentsMap(rows.map((r) => r.student_id));
+    const map: Record<string, TeacherStudent> = {};
+    rows.forEach((b) => {
+      if (!b.student_id) return;
+      if (!map[b.student_id]) map[b.student_id] = { id: b.student_id, name: smap[b.student_id]?.name ?? 'Student', avatar: smap[b.student_id]?.avatar ?? null, bookings: 0, active: 0, trials: 0 };
+      const s = map[b.student_id];
+      s.bookings++;
+      if (['confirmed', 'active'].includes((b.status ?? '').toLowerCase())) s.active++;
+      if (b.is_trial) s.trials++;
+    });
+    return Object.values(map);
+  }, []);
+}
+
+export interface Earning {
+  id: string; gross_amount_usd: number; commission_usd: number; net_amount_usd: number; status: string;
+  created_at: string; payment_type: string | null;
+}
+
+export async function fetchEarningsLedger(uid: string): Promise<Earning[]> {
+  return safe(async () => {
+    const { data } = await (supabase as any).from('teacher_earnings')
+      .select('id, gross_amount_usd, commission_usd, net_amount_usd, status, created_at, payment_type')
+      .eq('teacher_id', uid).order('created_at', { ascending: false }).limit(100);
+    return (data as Earning[]) ?? [];
+  }, []);
+}
+
+export interface MonthCount { label: string; value: number }
+
+export async function fetchTeacherLessonTrend(uid: string): Promise<MonthCount[]> {
+  const M = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const now = new Date();
+  const buckets: MonthCount[] = [];
+  for (let i = 5; i >= 0; i--) { const d = new Date(now.getFullYear(), now.getMonth() - i, 1); buckets.push({ label: M[d.getMonth()], value: 0 }); }
+  await safe(async () => {
+    const since = new Date(now.getFullYear(), now.getMonth() - 5, 1);
+    const { data } = await (supabase as any).from('lessons').select('scheduled_at, status').eq('teacher_id', uid).eq('status', 'completed').gte('scheduled_at', since.toISOString());
+    (data ?? []).forEach((l: any) => {
+      if (!l.scheduled_at) return;
+      const d = new Date(l.scheduled_at);
+      const idx = (d.getFullYear() - now.getFullYear()) * 12 + (d.getMonth() - now.getMonth()) + 5;
+      if (idx >= 0 && idx < 6) buckets[idx].value++;
+    });
+    return null;
+  }, null);
+  return buckets;
+}
