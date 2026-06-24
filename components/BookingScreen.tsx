@@ -9,7 +9,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Screen, Loading } from '@/components/ui';
 import { EmptyCard, Initials } from '@/components/dashboard';
 import { useAuth } from '@/lib/auth';
-import { fetchTeacherDetail, fetchBookingCourses, fetchChildren, createBooking, enrollFreeCourse, purchaseRecordedCourse, type TeacherDetail, type BookingCourse, type Child } from '@/lib/db';
+import { fetchTeacherDetail, fetchBookingCourses, fetchChildren, createBooking, enrollFreeCourse, purchaseRecordedCourse, fetchSubscriptionTiers, subscribeToCourse, type TeacherDetail, type BookingCourse, type Child, type SubTier } from '@/lib/db';
 import { C, FONT, G, RADIUS, SHADOW, SPACE } from '@/lib/theme';
 
 type Tab = 'trial' | 'recorded' | 'live' | 'program';
@@ -50,6 +50,10 @@ export function BookingScreen({ basePath, checkoutPath, bookingsPath }: { basePa
   const [notes, setNotes] = useState('');
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [subCourse, setSubCourse] = useState<BookingCourse | null>(null);
+  const [tiers, setTiers] = useState<SubTier[]>([]);
+  const [selectedTier, setSelectedTier] = useState<SubTier | null>(null);
+  const [subBusy, setSubBusy] = useState(false);
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -96,26 +100,42 @@ export function BookingScreen({ basePath, checkoutPath, bookingsPath }: { basePa
     }
   }
 
-  async function purchaseCourse(c: BookingCourse) {
+  async function purchaseRecorded(c: BookingCourse) {
     const studentId = role === 'parent' ? child : session?.user?.id;
     if (!studentId) { Alert.alert(role === 'parent' ? 'Select a child first' : 'Please sign in again'); return; }
     if (studentId === teacher!.id) { Alert.alert('You cannot buy your own course.'); return; }
-    // Free course → enrol immediately
     if (c.is_free || c.price_usd === 0) {
       const res = await enrollFreeCourse({ studentId, courseId: c.id, productType: c.product_type });
       Alert.alert(res.ok ? 'Enrolled' : 'Could not enrol', res.ok ? `You're enrolled in "${c.title}".` : (res.error ?? ''));
       return;
     }
-    // Paid recorded course → enrolment + booking → checkout (same engine as trials)
-    if (c.product_type === 'recorded') {
-      const res = await purchaseRecordedCourse({ studentId, teacherId: teacher!.id, courseId: c.id, title: c.title, priceUsd: c.price_usd });
-      if (!res.ok || !res.bookingId) { Alert.alert('Could not start purchase', res.error ?? ''); return; }
-      const params = new URLSearchParams({ bookingId: res.bookingId, amount: String(c.price_usd), course: c.title, teacher: teacher!.name, badge: 'RECORDED COURSE' });
-      router.push(`${checkoutPath}?${params.toString()}` as any);
-      return;
-    }
-    // Live / long courses are subscription-based → handle on web for now
-    Alert.alert('Subscription on the web', `"${c.title}" is a subscription course. Please complete this purchase on quranmentorglobal.com — in-app subscriptions are coming soon.`);
+    const res = await purchaseRecordedCourse({ studentId, teacherId: teacher!.id, courseId: c.id, title: c.title, priceUsd: c.price_usd });
+    if (!res.ok || !res.bookingId) { Alert.alert('Could not start purchase', res.error ?? ''); return; }
+    const params = new URLSearchParams({ bookingId: res.bookingId, amount: String(c.price_usd), course: c.title, teacher: teacher!.name, badge: 'RECORDED COURSE' });
+    router.push(`${checkoutPath}?${params.toString()}` as any);
+  }
+
+  async function openSubscription(c: BookingCourse) {
+    setSubCourse(c); setSelectedTier(null); setTiers([]);
+    setTiers(await fetchSubscriptionTiers(c));
+  }
+
+  async function confirmSubscription() {
+    if (!subCourse || !selectedTier) return;
+    const studentId = role === 'parent' ? child : session?.user?.id;
+    if (!studentId) { Alert.alert(role === 'parent' ? 'Select a child first' : 'Please sign in again'); return; }
+    if (studentId === teacher!.id) { Alert.alert('You cannot subscribe to your own course.'); return; }
+    setSubBusy(true);
+    const res = await subscribeToCourse({
+      studentId, payerId: session!.user!.id, teacherId: teacher!.id, courseId: subCourse.id, title: subCourse.title,
+      productType: subCourse.product_type, tier: selectedTier,
+      lessonsPerMonth: subCourse.lessons_per_month ?? 4, monthlyAmount: subCourse.monthly_price_usd ?? subCourse.price_usd ?? 0,
+    });
+    setSubBusy(false);
+    if (!res.ok) { Alert.alert('Could not subscribe', res.error ?? ''); return; }
+    if (res.free) { Alert.alert('Subscription activated', `You're enrolled in "${subCourse.title}".`); router.replace(`${bookingsPath}?tab=pending` as any); return; }
+    const params = new URLSearchParams({ bookingId: res.bookingId!, amount: String(selectedTier.price), course: `${subCourse.title} — ${selectedTier.label}`, teacher: teacher!.name, badge: 'LIVE COURSE' });
+    router.push(`${checkoutPath}?${params.toString()}` as any);
   }
 
   return (
@@ -241,8 +261,16 @@ export function BookingScreen({ basePath, checkoutPath, bookingsPath }: { basePa
             ) : null}
           </>
         )
+      ) : tab === 'recorded' ? (
+        <CourseList list={courses.recorded} kind="recorded" onPurchase={purchaseRecorded} />
+      ) : subCourse ? (
+        <SubscriptionView
+          course={subCourse} tiers={tiers} selected={selectedTier} busy={subBusy}
+          onSelect={setSelectedTier} onConfirm={confirmSubscription}
+          onBack={() => { setSubCourse(null); setSelectedTier(null); }}
+        />
       ) : (
-        <CourseList list={tab === 'recorded' ? courses.recorded : tab === 'live' ? courses.live : courses.program} kind={tab} onPurchase={purchaseCourse} />
+        <CourseList list={tab === 'live' ? courses.live : courses.program} kind={tab} onPurchase={openSubscription} />
       )}
     </Screen>
   );
@@ -264,11 +292,62 @@ function CourseList({ list, kind, onPurchase }: { list: BookingCourse[]; kind: T
             <Text style={styles.courseMeta}>All levels · {c.lessons} lesson{c.lessons === 1 ? '' : 's'}</Text>
             <View style={styles.courseFooter}>
               <Text style={styles.coursePrice}>{c.is_free ? 'Free' : `$${c.price_usd}`}</Text>
-              <Pressable onPress={() => onPurchase(c)} style={styles.purchaseBtn}><Text style={styles.purchaseText}>{c.is_free ? 'Enrol Free' : 'Purchase'}</Text></Pressable>
+              <Pressable onPress={() => onPurchase(c)} style={styles.purchaseBtn}><Text style={styles.purchaseText}>{kind === 'recorded' ? (c.is_free ? 'Enrol Free' : 'Purchase') : 'View Plans'}</Text></Pressable>
             </View>
           </View>
         </View>
       ))}
+    </>
+  );
+}
+
+function SubscriptionView({ course, tiers, selected, busy, onSelect, onConfirm, onBack }: {
+  course: BookingCourse; tiers: SubTier[]; selected: SubTier | null; busy: boolean;
+  onSelect: (t: SubTier) => void; onConfirm: () => void; onBack: () => void;
+}) {
+  return (
+    <>
+      <Pressable onPress={onBack} style={styles.backLink} hitSlop={8}>
+        <Ionicons name="chevron-back" size={18} color={C.ink} /><Text style={styles.backText}>Back to courses</Text>
+      </Pressable>
+
+      <LinearGradient colors={['#15402A', '#3F5A1E']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.subHero}>
+        <Ionicons name="videocam-outline" size={28} color="rgba(255,255,255,0.9)" />
+        <View style={{ flex: 1 }}>
+          <Text style={styles.subHeroTitle}>{course.title}</Text>
+          <Text style={styles.subHeroMeta}>{course.category ?? 'Course'} · {course.lessons_per_month ?? 4} lessons/month</Text>
+        </View>
+      </LinearGradient>
+
+      <Text style={styles.subHeading}>Choose your subscription plan:</Text>
+
+      {tiers.map((t) => {
+        const on = selected?.interval === t.interval;
+        const popular = t.interval === 'quarterly';
+        return (
+          <Pressable key={t.interval} onPress={() => onSelect(t)} style={[styles.tierCard, on && styles.tierCardOn]}>
+            <View style={styles.tierTop}>
+              <Text style={styles.tierLabel}>{t.label}</Text>
+              {t.discount > 0 ? <View style={styles.discountPill}><Text style={styles.discountText}>{t.discount}% OFF</Text></View> : null}
+              {popular ? <View style={styles.popularPill}><Text style={styles.popularText}>POPULAR</Text></View> : null}
+            </View>
+            <Text style={styles.tierLessons}>{t.lessonsTotal} lessons over {t.months} month{t.months === 1 ? '' : 's'}</Text>
+            <Text style={styles.tierPrice}>${t.price}</Text>
+            {t.months > 1 ? (
+              <>
+                <Text style={styles.tierMonthly}>${t.monthlyPrice}/month · {t.months} months</Text>
+                <Text style={styles.tierSave}>Save ${t.saving} vs monthly</Text>
+              </>
+            ) : null}
+          </Pressable>
+        );
+      })}
+
+      <Pressable onPress={onConfirm} disabled={!selected || busy} style={{ marginTop: SPACE.sm }}>
+        <LinearGradient colors={selected ? ['#166534', '#C9A227'] : ['#9CA3AF', '#D1D5DB']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.bookBtn}>
+          <Text style={styles.bookText}>{busy ? 'Processing…' : selected ? `Continue — $${selected.price}` : 'Select a plan to continue'}</Text>
+        </LinearGradient>
+      </Pressable>
     </>
   );
 }
@@ -349,4 +428,20 @@ const styles = StyleSheet.create({
   coursePrice: { fontFamily: FONT.displayBold, fontSize: 22, color: C.gold },
   purchaseBtn: { backgroundColor: C.forest, borderRadius: RADIUS.md, paddingHorizontal: SPACE.lg, paddingVertical: 11 },
   purchaseText: { fontFamily: FONT.bodyBold, fontSize: 14, color: C.white },
+  subHero: { flexDirection: 'row', alignItems: 'center', gap: 14, borderRadius: RADIUS.lg, padding: SPACE.md, marginBottom: SPACE.md, ...SHADOW.card },
+  subHeroTitle: { fontFamily: FONT.displayBold, fontSize: 18, color: C.white },
+  subHeroMeta: { fontFamily: FONT.body, fontSize: 13, color: 'rgba(255,255,255,0.85)', marginTop: 3 },
+  subHeading: { fontFamily: FONT.bodyBold, fontSize: 15, color: C.ink, marginBottom: SPACE.md },
+  tierCard: { backgroundColor: C.card, borderRadius: RADIUS.lg, padding: SPACE.md, marginBottom: SPACE.md, borderWidth: 2, borderColor: 'transparent', ...SHADOW.card },
+  tierCardOn: { borderColor: C.gold },
+  tierTop: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 },
+  tierLabel: { fontFamily: FONT.bodyBold, fontSize: 16, color: C.ink },
+  discountPill: { backgroundColor: C.tintGreen, borderRadius: RADIUS.pill, paddingHorizontal: 8, paddingVertical: 3 },
+  discountText: { fontFamily: FONT.bodyBold, fontSize: 10, color: C.forest },
+  popularPill: { marginLeft: 'auto', backgroundColor: C.gold, borderRadius: RADIUS.pill, paddingHorizontal: 10, paddingVertical: 3 },
+  popularText: { fontFamily: FONT.bodyBold, fontSize: 10, color: C.ink },
+  tierLessons: { fontFamily: FONT.body, fontSize: 13, color: C.muted },
+  tierPrice: { fontFamily: FONT.displayBold, fontSize: 28, color: C.ink, marginTop: 8 },
+  tierMonthly: { fontFamily: FONT.body, fontSize: 12, color: C.muted, marginTop: 4 },
+  tierSave: { fontFamily: FONT.bodySemi, fontSize: 12, color: C.success, marginTop: 2 },
 });

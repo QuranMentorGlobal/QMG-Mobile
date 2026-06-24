@@ -626,12 +626,13 @@ export async function fetchTeacherDetail(id: string): Promise<TeacherDetail | nu
 export interface BookingCourse {
   id: string; title: string; category: string | null; description: string | null;
   price_usd: number; is_free: boolean; duration_mins: number; product_type: string; lessons: number;
+  monthly_price_usd: number | null; lessons_per_month: number | null;
 }
 
 export async function fetchBookingCourses(teacherId: string): Promise<{ trial: BookingCourse[]; recorded: BookingCourse[]; live: BookingCourse[]; program: BookingCourse[] }> {
   return safe(async () => {
     const { data } = await (supabase as any).from('courses')
-      .select('id, title, category, description, price_usd, is_free, duration_mins, product_type')
+      .select('id, title, category, description, price_usd, is_free, duration_mins, product_type, monthly_price_usd, lessons_per_month')
       .eq('teacher_id', teacherId).eq('is_active', true);
     const rows = (data as any[]) ?? [];
     const ids = rows.map((r) => r.id);
@@ -649,6 +650,7 @@ export async function fetchBookingCourses(teacherId: string): Promise<{ trial: B
       id: r.id, title: r.title ?? 'Course', category: r.category ?? null, description: r.description ?? null,
       price_usd: Number(r.price_usd ?? 0), is_free: !!r.is_free, duration_mins: dur[r.id] ?? r.duration_mins ?? 30,
       product_type: r.product_type ?? 'trial', lessons: lessons[r.id] ?? 0,
+      monthly_price_usd: r.monthly_price_usd ?? null, lessons_per_month: r.lessons_per_month ?? null,
     });
     return {
       trial: rows.filter((r) => r.product_type === 'trial').map(map),
@@ -801,4 +803,86 @@ export async function purchaseRecordedCourse(args: {
     if (error || !data) return { ok: false, error: error?.message || 'Could not start purchase.' };
     return { ok: true, bookingId: data.id };
   }, { ok: false, error: 'Could not start purchase.' });
+}
+
+// ── Live / Long course subscriptions ────────────────────────────────────────
+
+export interface SubTier {
+  interval: string; label: string; months: number; price: number;
+  monthlyPrice: number; discount: number; lessonsTotal: number; saving: number;
+}
+
+const INTERVAL_MONTHS: Record<string, number> = { monthly: 1, quarterly: 3, semi_annual: 6, annual: 12 };
+const INTERVAL_LABELS: Record<string, string> = { monthly: 'Monthly', quarterly: 'Quarterly', semi_annual: 'Semi-Annual', annual: 'Annual' };
+
+function buildTiers(monthlyBase: number, lessonsPerMo: number, plans: any[]): SubTier[] {
+  if (plans.length > 0) {
+    return plans.map((p: any) => {
+      const interval = p.billing_interval === 'month' ? 'monthly' : p.billing_interval;
+      const months = INTERVAL_MONTHS[interval] || 1;
+      const gross = monthlyBase * months;
+      const discount = gross > 0 ? Math.round((1 - p.price_usd / gross) * 100) : 0;
+      return { interval, label: INTERVAL_LABELS[interval] || interval, months, price: p.price_usd, monthlyPrice: Math.round(p.price_usd / months), discount: Math.max(0, discount), lessonsTotal: lessonsPerMo * months, saving: Math.max(0, gross - p.price_usd) };
+    });
+  }
+  const defaults = [
+    { interval: 'monthly', months: 1, discount: 0 },
+    { interval: 'quarterly', months: 3, discount: 10 },
+    { interval: 'semi_annual', months: 6, discount: 15 },
+    { interval: 'annual', months: 12, discount: 25 },
+  ];
+  return defaults.map((d) => {
+    const gross = monthlyBase * d.months;
+    const price = Math.round(gross * (1 - d.discount / 100));
+    return { interval: d.interval, label: INTERVAL_LABELS[d.interval], months: d.months, price, monthlyPrice: Math.round(price / d.months), discount: d.discount, lessonsTotal: lessonsPerMo * d.months, saving: gross - price };
+  });
+}
+
+export async function fetchSubscriptionTiers(course: { title: string; monthly_price_usd?: number | null; price_usd?: number | null; lessons_per_month?: number | null }): Promise<SubTier[]> {
+  return safe(async () => {
+    const { data: plans } = await (supabase as any).from('subscription_plans')
+      .select('*').eq('is_active', true).ilike('name', `%${(course.title || '').split(' ')[0]}%`).order('price_usd', { ascending: true });
+    const monthlyBase = course.monthly_price_usd || course.price_usd || 100;
+    const lessonsPerMo = course.lessons_per_month || 4;
+    return buildTiers(monthlyBase, lessonsPerMo, (plans as any[]) || []);
+  }, buildTiers(100, 4, []));
+}
+
+export async function subscribeToCourse(args: {
+  studentId: string; payerId: string; teacherId: string; courseId: string; title: string; productType: string;
+  tier: SubTier; lessonsPerMonth: number; monthlyAmount: number;
+}): Promise<{ ok: boolean; free?: boolean; bookingId?: string; error?: string }> {
+  return safe(async () => {
+    const isFree = args.tier.price === 0;
+    const status = isFree ? 'active' : 'pending';
+    await (supabase as any).from('enrollments').insert({
+      course_id: args.courseId, student_id: args.studentId,
+      product_type: args.productType === 'program' ? 'live' : args.productType,
+      price_paid_usd: args.tier.price, status,
+    });
+    const now = new Date();
+    const end = new Date(now); end.setMonth(end.getMonth() + args.tier.months);
+    await (supabase as any).from('subscriptions').insert({
+      student_id: args.studentId, teacher_id: args.teacherId, payer_id: args.payerId, course_id: args.courseId,
+      status, billing_model: args.tier.interval, lessons_per_month: args.lessonsPerMonth || 4,
+      monthly_amount_usd: args.monthlyAmount || 0, commission_pct: 20, currency: 'usd',
+      current_period_start: now.toISOString(), current_period_end: end.toISOString(), next_billing_date: end.toISOString(),
+      installments_paid: 1, total_installments: args.tier.months === 1 ? null : args.tier.months,
+    });
+    try {
+      await (supabase as any).from('notifications').insert({
+        user_id: args.teacherId, type: 'booking_confirmed', title: 'New Subscription',
+        body: `A student subscribed to "${args.title}" (${args.tier.label} plan — $${args.tier.price})`,
+        href: '/platform/teacher/bookings?tab=confirmed',
+      });
+    } catch {}
+    if (isFree) return { ok: true, free: true };
+    const { data, error } = await (supabase as any).from('bookings').insert({
+      student_id: args.studentId, teacher_id: args.teacherId, course_id: args.courseId,
+      status: 'pending', start_date: now.toISOString().split('T')[0], session_time: '00:00',
+      recurrence: args.tier.interval, price_usd: args.tier.price, is_trial: false,
+    }).select('id').single();
+    if (error || !data) return { ok: false, error: error?.message || 'Could not create checkout.' };
+    return { ok: true, bookingId: data.id };
+  }, { ok: false, error: 'Could not subscribe.' });
 }
