@@ -534,3 +534,171 @@ export async function fetchTeacherLessonTrend(uid: string): Promise<MonthCount[]
   }, null);
   return buckets;
 }
+
+// ── Parent inner pages ──────────────────────────────────────────────────────
+
+export interface ParentPayment { id: string; gross_amount_usd: number; created_at: string; childName: string; payment_type: string | null; }
+export interface ParentRefund { id: string; amount_usd: number; reason: string | null; created_at: string; childName: string; }
+
+export async function fetchParentBilling(parentId: string): Promise<{ payments: ParentPayment[]; refunds: ParentRefund[]; total: number; refunded: number }> {
+  return safe(async () => {
+    const kids = await fetchChildren(parentId);
+    const ids = kids.map((k) => k.id);
+    const nameOf = (id: string) => { const k = kids.find((c) => c.id === id); return k ? [k.first_name, k.last_name].filter(Boolean).join(' ') || 'Child' : 'Child'; };
+    if (!ids.length) return { payments: [], refunds: [], total: 0, refunded: 0 };
+
+    const [{ data: pays }, { data: refs }] = await Promise.all([
+      (supabase as any).from('payments').select('id, gross_amount_usd, created_at, student_id, payment_type').in('student_id', ids).eq('status', 'succeeded').order('created_at', { ascending: false }).limit(60),
+      (supabase as any).from('booking_refunds').select('id, amount_usd, reason, created_at, student_id').in('student_id', ids).order('created_at', { ascending: false }).limit(40),
+    ]);
+    const payments: ParentPayment[] = (pays ?? []).map((p: any) => ({ id: p.id, gross_amount_usd: Number(p.gross_amount_usd ?? 0), created_at: p.created_at, childName: nameOf(p.student_id), payment_type: p.payment_type ?? null }));
+    const refunds: ParentRefund[] = (refs ?? []).map((r: any) => ({ id: r.id, amount_usd: Number(r.amount_usd ?? 0), reason: r.reason ?? null, created_at: r.created_at, childName: nameOf(r.student_id) }));
+    return {
+      payments, refunds,
+      total: payments.reduce((s, p) => s + p.gross_amount_usd, 0),
+      refunded: refunds.reduce((s, r) => s + r.amount_usd, 0),
+    };
+  }, { payments: [], refunds: [], total: 0, refunded: 0 });
+}
+
+export interface ChildDetail {
+  id: string; name: string; email: string | null; hifzLevel: number; tajweedLevel: number;
+  done: number; upcoming: number; recent: { id: string; scheduled_at: string | null; status: string | null }[];
+}
+
+export async function fetchChildDetail(childId: string): Promise<ChildDetail | null> {
+  return safe(async () => {
+    const { data: p } = await (supabase as any).from('profiles').select('id, first_name, last_name, email, hifz_level, tajweed_level').eq('id', childId).single();
+    if (!p) return null;
+    const [{ count: done }, { count: up }, { data: recent }] = await Promise.all([
+      (supabase as any).from('lessons').select('id', { count: 'exact', head: true }).eq('student_id', childId).eq('status', 'completed'),
+      (supabase as any).from('lessons').select('id', { count: 'exact', head: true }).eq('student_id', childId).in('status', ['scheduled', 'live']).gte('scheduled_at', new Date().toISOString()),
+      (supabase as any).from('lessons').select('id, scheduled_at, status').eq('student_id', childId).order('scheduled_at', { ascending: false }).limit(6),
+    ]);
+    return {
+      id: p.id, name: [p.first_name, p.last_name].filter(Boolean).join(' ') || 'Child', email: p.email ?? null,
+      hifzLevel: p.hifz_level ?? 0, tajweedLevel: p.tajweed_level ?? 0, done: done ?? 0, upcoming: up ?? 0,
+      recent: (recent as any[]) ?? [],
+    };
+  }, null);
+}
+
+export async function addChildByEmail(parentId: string, email: string): Promise<{ ok: boolean; error?: string }> {
+  return safe(async () => {
+    const { data: prof } = await (supabase as any).from('profiles').select('id, role').eq('email', email.trim().toLowerCase()).maybeSingle();
+    if (!prof) return { ok: false, error: 'No account found with that email.' };
+    if (prof.role !== 'student') return { ok: false, error: 'That account is not a student account.' };
+    const { error } = await (supabase as any).from('parent_children').insert({ parent_id: parentId, child_id: prof.id });
+    if (error) return { ok: false, error: 'Could not link this child (they may already be linked).' };
+    return { ok: true };
+  }, { ok: false, error: 'Something went wrong. Please try again.' });
+}
+
+// ── Booking workflow (Teachers · Detail · Booking · Checkout) ────────────────
+
+export const API_BASE = 'https://www.quranmentorglobal.com';
+
+export interface TeacherDetail {
+  id: string; name: string; firstName: string; avatar_url: string | null; country: string | null;
+  years_experience: number | null; avg_rating: number | null; total_lessons: number; total_reviews: number;
+  bio: string | null; specializations: string[]; teaching_languages: string[]; available_days: string[];
+  hourly_rate_usd: number | null; trial_rate_usd: number | null; intro_video_url: string | null; badge_keys: string[];
+  email_verified: boolean; phone_verified: boolean; identity_verified: boolean; quran_mentor_verified: boolean; ijazah_verified: boolean;
+}
+
+export async function fetchTeacherDetail(id: string): Promise<TeacherDetail | null> {
+  return safe(async () => {
+    const { data: pt } = await (supabase as any).from('public_teachers').select('*').eq('id', id).single();
+    if (!pt) return null;
+    return {
+      id: pt.id, name: [pt.first_name, pt.last_name].filter(Boolean).join(' ') || 'Teacher', firstName: pt.first_name || 'this teacher',
+      avatar_url: pt.avatar_url ?? null, country: pt.country ?? null, years_experience: pt.years_experience ?? null,
+      avg_rating: pt.avg_rating ?? null, total_lessons: pt.total_lessons ?? 0, total_reviews: pt.total_reviews ?? 0,
+      bio: pt.bio ?? null, specializations: pt.specializations ?? [], teaching_languages: pt.teaching_languages ?? [],
+      available_days: pt.available_days ?? [], hourly_rate_usd: pt.hourly_rate_usd ?? null, trial_rate_usd: pt.trial_rate_usd ?? null,
+      intro_video_url: pt.intro_video_url ?? null, badge_keys: pt.badge_keys ?? [],
+      email_verified: !!pt.email_verified, phone_verified: !!pt.phone_verified, identity_verified: !!pt.identity_verified,
+      quran_mentor_verified: !!pt.quran_mentor_verified, ijazah_verified: !!pt.ijazah_verified,
+    };
+  }, null);
+}
+
+export interface BookingCourse {
+  id: string; title: string; category: string | null; description: string | null;
+  price_usd: number; is_free: boolean; duration_mins: number; product_type: string; lessons: number;
+}
+
+export async function fetchBookingCourses(teacherId: string): Promise<{ trial: BookingCourse[]; recorded: BookingCourse[]; live: BookingCourse[]; program: BookingCourse[] }> {
+  return safe(async () => {
+    const { data } = await (supabase as any).from('courses')
+      .select('id, title, category, description, price_usd, is_free, duration_mins, product_type')
+      .eq('teacher_id', teacherId).eq('is_active', true);
+    const rows = (data as any[]) ?? [];
+    const ids = rows.map((r) => r.id);
+    const dur: Record<string, number> = {};
+    const lessons: Record<string, number> = {};
+    if (ids.length) {
+      const [{ data: td }, { data: cl }] = await Promise.all([
+        (supabase as any).from('trial_course_details').select('course_id, duration_mins').in('course_id', ids),
+        (supabase as any).from('course_lessons').select('course_id').in('course_id', ids),
+      ]);
+      (td ?? []).forEach((d: any) => { if (d.duration_mins) dur[d.course_id] = d.duration_mins; });
+      (cl ?? []).forEach((l: any) => { lessons[l.course_id] = (lessons[l.course_id] ?? 0) + 1; });
+    }
+    const map = (r: any): BookingCourse => ({
+      id: r.id, title: r.title ?? 'Course', category: r.category ?? null, description: r.description ?? null,
+      price_usd: Number(r.price_usd ?? 0), is_free: !!r.is_free, duration_mins: dur[r.id] ?? r.duration_mins ?? 30,
+      product_type: r.product_type ?? 'trial', lessons: lessons[r.id] ?? 0,
+    });
+    return {
+      trial: rows.filter((r) => r.product_type === 'trial').map(map),
+      recorded: rows.filter((r) => r.product_type === 'recorded').map(map),
+      live: rows.filter((r) => r.product_type === 'live').map(map),
+      program: rows.filter((r) => r.product_type === 'program').map(map),
+    };
+  }, { trial: [], recorded: [], live: [], program: [] });
+}
+
+export async function createBooking(args: {
+  studentId: string; teacherId: string; courseId: string; startDate: string; sessionTime: string;
+  durationMins: number; priceUsd: number; notes: string;
+}): Promise<{ ok: boolean; bookingId?: string; error?: string }> {
+  return safe(async () => {
+    const { data, error } = await (supabase as any).from('bookings').insert({
+      student_id: args.studentId, teacher_id: args.teacherId, course_id: args.courseId,
+      status: 'pending', start_date: args.startDate, session_time: args.sessionTime,
+      recurrence: 'once', duration_mins: args.durationMins, price_usd: args.priceUsd, is_trial: true,
+      student_notes: args.notes.trim() || null,
+    }).select('id').single();
+    if (error || !data) return { ok: false, error: error?.message || 'Could not create booking.' };
+    // best-effort teacher notification
+    try {
+      await (supabase as any).from('notifications').insert({
+        user_id: args.teacherId, type: 'booking_confirmed', title: 'New Trial Request',
+        body: `${args.priceUsd === 0 ? 'Free trial' : `$${args.priceUsd} trial`} booked for ${new Date(args.startDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} at ${args.sessionTime}`,
+        href: '/platform/teacher/bookings?tab=pending',
+      });
+    } catch {}
+    return { ok: true, bookingId: data.id };
+  }, { ok: false, error: 'Could not create booking.' });
+}
+
+export async function processCardPayment(args: {
+  bookingId: string; amount: number; brand: string; last4: string; name: string;
+}): Promise<{ ok: boolean; declined?: boolean; error?: string }> {
+  try {
+    const res = await fetch(`${API_BASE}/api/payments/process`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        bookingId: args.bookingId, provider: 'stripe', methodType: 'card',
+        amount: Math.round(args.amount * 100), currency: 'usd',
+        cardMeta: { last4: args.last4, brand: args.brand, name: args.name },
+      }),
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok || json.status === 'failed') return { ok: false, error: json.error || 'Payment could not be processed.' };
+    return { ok: true };
+  } catch (e: any) {
+    return { ok: false, error: e?.message || 'Network error during payment.' };
+  }
+}

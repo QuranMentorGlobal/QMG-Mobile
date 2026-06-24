@@ -1,97 +1,215 @@
-// components/TeachersScreen.tsx
-// Browse Teachers — shared by student and parent. Reads the same public_teachers view
-// the website uses. Header comes from the shell, so this starts with search + cards.
-
+// components/TeachersScreen.tsx — Browse Teachers (shared student/parent).
+// Search · category chips with counts · max-price filter · marketplace cards.
 import { useCallback, useMemo, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
-import { useFocusEffect } from 'expo-router';
+import { Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { Avatar, Card, Field, Screen, EmptyState, Loading } from '@/components/ui';
+import { Screen, Loading } from '@/components/ui';
+import { EmptyCard, Initials } from '@/components/dashboard';
 import { fetchTeachers, teacherName, type PublicTeacher } from '@/lib/db';
-import { C, FONT, RADIUS, SPACE } from '@/lib/theme';
+import { C, FONT, RADIUS, SHADOW, SPACE } from '@/lib/theme';
 
-export function TeachersScreen() {
+const CATEGORIES = ['All Teachers', 'Noorani Qaida', 'Tajweed', 'Hifz', 'Tafseer', 'Islamic Studies', 'Ijazah'];
+const PRICE_CAPS = [25, 50, 100, 200];
+const HEADER_GRADIENT = ['#15402A', '#166534'] as const;
+
+export function TeachersScreen({ basePath }: { basePath: string }) {
+  const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [teachers, setTeachers] = useState<PublicTeacher[]>([]);
   const [q, setQ] = useState('');
+  const [cat, setCat] = useState('All Teachers');
+  const [maxPrice, setMaxPrice] = useState(200);
 
   const load = useCallback(async () => {
     setTeachers(await fetchTeachers());
     setLoading(false);
   }, []);
-
   useFocusEffect(useCallback(() => { load(); }, [load]));
+
+  const counts = useMemo(() => {
+    const c: Record<string, number> = { 'All Teachers': teachers.length };
+    CATEGORIES.slice(1).forEach((k) => {
+      c[k] = teachers.filter((t) => (t.specializations ?? []).some((s) => s.toLowerCase().includes(k.toLowerCase()))).length;
+    });
+    return c;
+  }, [teachers]);
 
   const filtered = useMemo(() => {
     const needle = q.trim().toLowerCase();
-    if (!needle) return teachers;
     return teachers.filter((t) => {
-      const hay = [teacherName(t), t.country ?? '', ...(t.specializations ?? []), ...(t.teaching_languages ?? [])].join(' ').toLowerCase();
-      return hay.includes(needle);
+      if (cat !== 'All Teachers' && !(t.specializations ?? []).some((s) => s.toLowerCase().includes(cat.toLowerCase()))) return false;
+      const rate = t.hourly_rate_usd ?? 0;
+      if (rate > maxPrice) return false;
+      if (needle) {
+        const hay = [teacherName(t), t.country ?? '', ...(t.specializations ?? []), ...(t.teaching_languages ?? [])].join(' ').toLowerCase();
+        if (!hay.includes(needle)) return false;
+      }
+      return true;
     });
-  }, [teachers, q]);
+  }, [teachers, q, cat, maxPrice]);
 
   if (loading) return <Screen scroll={false}><Loading label="Finding teachers…" /></Screen>;
 
   return (
     <Screen>
-      <Text style={styles.h1}>Find your teacher</Text>
-      <Text style={styles.sub}>{teachers.length} certified teachers available</Text>
-      <Field placeholder="Search by name, subject, language…" value={q} onChangeText={setQ} />
+      <Text style={styles.h1}>Teachers</Text>
+      <Text style={styles.sub}>Find a certified Qari that matches your learning goals.</Text>
+
+      <View style={styles.aiCard}>
+        <View style={styles.aiIcon}><Ionicons name="sparkles" size={18} color={C.gold} /></View>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.aiTitle}>Find my best match</Text>
+          <Text style={styles.aiBody}>Answer a few questions and let AI pick teachers for you.</Text>
+        </View>
+        <Ionicons name="chevron-down" size={18} color={C.muted} />
+      </View>
+
+      <View style={styles.search}>
+        <Ionicons name="search" size={18} color={C.faint} />
+        <TextInput value={q} onChangeText={setQ} placeholder="Search by name, course, or keyword…" placeholderTextColor={C.faint} style={styles.searchInput} />
+      </View>
+
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
+        {CATEGORIES.map((k) => {
+          const active = cat === k;
+          return (
+            <Pressable key={k} onPress={() => setCat(k)} style={[styles.chip, active && styles.chipActive]}>
+              <Text style={[styles.chipText, active && styles.chipTextActive]}>{k}</Text>
+              <View style={[styles.chipCount, active && styles.chipCountActive]}><Text style={[styles.chipCountText, active && { color: C.ink }]}>{counts[k] ?? 0}</Text></View>
+            </Pressable>
+          );
+        })}
+      </ScrollView>
+
+      <View style={styles.priceCard}>
+        <Text style={styles.priceLabel}>Max Price</Text>
+        <View style={styles.priceCaps}>
+          {PRICE_CAPS.map((p) => (
+            <Pressable key={p} onPress={() => setMaxPrice(p)} style={[styles.cap, maxPrice === p && styles.capActive]}>
+              <Text style={[styles.capText, maxPrice === p && styles.capTextActive]}>${p}</Text>
+            </Pressable>
+          ))}
+        </View>
+      </View>
+
+      <Text style={styles.found}>{filtered.length} teacher{filtered.length === 1 ? '' : 's'} found</Text>
+
       {filtered.length === 0 ? (
-        <EmptyState title="No teachers matched" body="Try a different name, subject, or language." />
+        <EmptyCard icon="search-outline" title="No teachers match" body="Try clearing the search or widening the price." />
       ) : (
-        filtered.map((t) => <TeacherCard key={t.id} t={t} />)
+        filtered.map((t) => <TeacherCard key={t.id} t={t} onProfile={() => router.push(`${basePath}/${t.id}` as any)} onCourses={() => router.push(`${basePath}/${t.id}/book` as any)} />)
       )}
     </Screen>
   );
 }
 
-function TeacherCard({ t }: { t: PublicTeacher }) {
+function TeacherCard({ t, onProfile, onCourses }: { t: PublicTeacher; onProfile: () => void; onCourses: () => void }) {
   const name = teacherName(t);
-  const specs = (t.specializations ?? []).slice(0, 3);
+  const exp = t.years_experience ?? 0;
+  const rating = t.avg_rating ?? 0;
+  const spec = (t.specializations ?? [])[0];
+  const langs = (t.teaching_languages ?? []).slice(0, 3).join(', ');
   return (
-    <Card>
-      <View style={styles.top}>
-        <Avatar uri={t.avatar_url} name={name} size={52} />
+    <View style={styles.card}>
+      <LinearGradient colors={HEADER_GRADIENT} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.cardHeader}>
+        {t.avatar_url ? <Image source={{ uri: t.avatar_url }} style={styles.cardAvatar} /> : <View style={styles.cardAvatarFallback}><Initials name={name} size={56} /></View>}
         <View style={{ flex: 1 }}>
-          <Text style={styles.name}>{name}</Text>
-          <Text style={styles.meta}>{(t.country ?? 'International')} · {t.years_experience ?? 0}yr exp</Text>
-          <View style={styles.ratingRow}>
-            <Ionicons name="star" size={13} color={C.gold} />
-            <Text style={styles.rating}>{(t.avg_rating ?? 0).toFixed(1)}</Text>
-            <Text style={styles.reviews}>({t.total_reviews ?? 0} reviews)</Text>
+          <Text style={styles.cardName} numberOfLines={1}>{name}</Text>
+          <Text style={styles.cardMeta}>{t.country ?? 'Worldwide'} · {exp}yr exp</Text>
+          <View style={styles.stars}>
+            {[0, 1, 2, 3, 4].map((i) => <Ionicons key={i} name="star" size={13} color={i < Math.round(rating) ? C.goldLight : 'rgba(255,255,255,0.3)'} />)}
+            <Text style={styles.newTag}>{rating > 0 ? rating.toFixed(1) : 'New'}</Text>
           </View>
         </View>
-      </View>
-      {t.bio ? <Text style={styles.bio} numberOfLines={2}>{t.bio}</Text> : null}
-      {specs.length > 0 ? (
-        <View style={styles.tags}>
-          {specs.map((s) => (<View key={s} style={styles.tag}><Text style={styles.tagText}>{s}</Text></View>))}
+      </LinearGradient>
+
+      <View style={styles.cardBody}>
+        {t.bio ? <Text style={styles.bio} numberOfLines={1}>{t.bio}</Text> : null}
+        {spec ? <View style={styles.specPill}><Text style={styles.specText}>{spec}</Text></View> : null}
+        {langs ? (
+          <View style={styles.langRow}><Ionicons name="globe-outline" size={13} color={C.muted} /><Text style={styles.langText}>{langs}</Text></View>
+        ) : null}
+
+        <View style={styles.statsRow}>
+          <View style={styles.stat}><Text style={styles.statValue}>{t.total_lessons ?? 0}</Text><Text style={styles.statLabel}>Lessons</Text></View>
+          <View style={styles.statDivider} />
+          <View style={styles.stat}><Text style={styles.statValue}>{t.total_reviews ?? 0}</Text><Text style={styles.statLabel}>Reviews</Text></View>
+          <View style={styles.statDivider} />
+          <View style={styles.stat}><Text style={styles.priceValue}>${t.hourly_rate_usd ?? 0}</Text><Text style={styles.statLabel}>per hour</Text></View>
         </View>
-      ) : null}
-      <View style={styles.rateRow}>
-        <View><Text style={styles.rateLabel}>Per lesson</Text><Text style={styles.rate}>${t.hourly_rate_usd ?? 0}</Text></View>
-        <View><Text style={styles.rateLabel}>Trial</Text><Text style={[styles.rate, { color: C.forest }]}>{Number(t.trial_rate_usd) > 0 ? `$${t.trial_rate_usd}` : 'Free'}</Text></View>
+
+        <View style={styles.trialRow}>
+          <Text style={styles.trialLabel}>First trial lesson</Text>
+          <Text style={styles.trialFree}>{(t.trial_rate_usd ?? 0) === 0 ? 'Free' : `$${t.trial_rate_usd}`}</Text>
+        </View>
+
+        <View style={styles.btnRow}>
+          <Pressable onPress={onProfile} style={styles.outlineBtn}><Text style={styles.outlineText}>View Profile</Text></Pressable>
+          <Pressable onPress={onCourses} style={{ flex: 1 }}>
+            <LinearGradient colors={['#166534', '#C9A227']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.fillBtn}>
+              <Text style={styles.fillText}>View Courses →</Text>
+            </LinearGradient>
+          </Pressable>
+        </View>
       </View>
-    </Card>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  h1: { fontFamily: FONT.displayBold, fontSize: 22, color: C.ink, marginTop: SPACE.xs },
-  sub: { fontFamily: FONT.body, fontSize: 13, color: C.muted, marginTop: 2, marginBottom: SPACE.md },
-  top: { flexDirection: 'row', gap: SPACE.md, alignItems: 'center' },
-  name: { fontFamily: FONT.displayBold, fontSize: 16, color: C.ink },
-  meta: { fontFamily: FONT.body, fontSize: 12, color: C.muted, marginTop: 2 },
-  ratingRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 },
-  rating: { fontFamily: FONT.bodyBold, fontSize: 13, color: C.ink },
-  reviews: { fontFamily: FONT.body, fontSize: 12, color: C.faint },
-  bio: { fontFamily: FONT.body, fontSize: 13, color: C.text, lineHeight: 19, marginTop: SPACE.sm },
-  tags: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: SPACE.sm },
-  tag: { backgroundColor: C.hoverGold, borderRadius: RADIUS.pill, paddingHorizontal: 10, paddingVertical: 4 },
-  tagText: { fontFamily: FONT.bodyMed, fontSize: 11, color: C.accent2 },
-  rateRow: { flexDirection: 'row', gap: SPACE.xl, marginTop: SPACE.md, paddingTop: SPACE.sm, borderTopWidth: 1, borderTopColor: C.borderSoft },
-  rateLabel: { fontFamily: FONT.body, fontSize: 11, color: C.muted },
-  rate: { fontFamily: FONT.displayBold, fontSize: 18, color: C.ink, marginTop: 2 },
+  h1: { fontFamily: FONT.displayBold, fontSize: 28, color: C.ink, textAlign: 'center', marginTop: SPACE.xs },
+  sub: { fontFamily: FONT.body, fontSize: 13, color: C.muted, textAlign: 'center', marginTop: 4, marginBottom: SPACE.md },
+  aiCard: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: C.card, borderRadius: RADIUS.lg, padding: SPACE.md, marginBottom: SPACE.md, ...SHADOW.card },
+  aiIcon: { width: 40, height: 40, borderRadius: 20, backgroundColor: C.tintGold, alignItems: 'center', justifyContent: 'center' },
+  aiTitle: { fontFamily: FONT.displayBold, fontSize: 15, color: C.ink },
+  aiBody: { fontFamily: FONT.body, fontSize: 12, color: C.muted, marginTop: 2 },
+  search: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: C.card, borderRadius: RADIUS.md, paddingHorizontal: 14, height: 48, marginBottom: SPACE.md, borderWidth: 1, borderColor: C.borderSoft },
+  searchInput: { flex: 1, fontFamily: FONT.body, fontSize: 14, color: C.ink },
+  chips: { gap: 8, paddingBottom: SPACE.sm, paddingRight: SPACE.md },
+  chip: { flexDirection: 'row', alignItems: 'center', gap: 7, borderRadius: RADIUS.pill, paddingHorizontal: 14, paddingVertical: 9, backgroundColor: C.card, borderWidth: 1, borderColor: C.borderSoft },
+  chipActive: { backgroundColor: C.forest, borderColor: C.forest },
+  chipText: { fontFamily: FONT.bodySemi, fontSize: 13, color: C.text },
+  chipTextActive: { color: C.white },
+  chipCount: { minWidth: 20, height: 20, borderRadius: 10, backgroundColor: C.cream, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 5 },
+  chipCountActive: { backgroundColor: C.gold },
+  chipCountText: { fontFamily: FONT.bodyBold, fontSize: 11, color: C.muted },
+  priceCard: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: C.card, borderRadius: RADIUS.md, padding: SPACE.sm, paddingHorizontal: SPACE.md, marginTop: SPACE.xs, marginBottom: SPACE.md, ...SHADOW.card },
+  priceLabel: { fontFamily: FONT.bodyBold, fontSize: 13, color: C.ink },
+  priceCaps: { flexDirection: 'row', gap: 6, flex: 1, justifyContent: 'flex-end' },
+  cap: { borderRadius: RADIUS.pill, paddingHorizontal: 12, paddingVertical: 6, backgroundColor: C.cream },
+  capActive: { backgroundColor: C.forest },
+  capText: { fontFamily: FONT.bodySemi, fontSize: 12, color: C.muted },
+  capTextActive: { color: C.white },
+  found: { fontFamily: FONT.bodyMed, fontSize: 12, color: C.muted, marginBottom: SPACE.md },
+
+  card: { backgroundColor: C.card, borderRadius: RADIUS.lg, marginBottom: SPACE.md, overflow: 'hidden', ...SHADOW.card },
+  cardHeader: { flexDirection: 'row', alignItems: 'center', gap: 14, padding: SPACE.md },
+  cardAvatar: { width: 64, height: 64, borderRadius: 32, borderWidth: 2, borderColor: 'rgba(255,255,255,0.5)' },
+  cardAvatarFallback: { width: 64, height: 64, borderRadius: 32, overflow: 'hidden' },
+  cardName: { fontFamily: FONT.displayBold, fontSize: 19, color: C.white },
+  cardMeta: { fontFamily: FONT.body, fontSize: 12, color: 'rgba(255,255,255,0.85)', marginTop: 2 },
+  stars: { flexDirection: 'row', alignItems: 'center', gap: 2, marginTop: 6 },
+  newTag: { fontFamily: FONT.bodySemi, fontSize: 12, color: C.goldLight, marginLeft: 6 },
+  cardBody: { padding: SPACE.md },
+  bio: { fontFamily: FONT.body, fontSize: 13, color: C.muted, marginBottom: SPACE.sm },
+  specPill: { alignSelf: 'flex-start', backgroundColor: C.tintGold, borderRadius: RADIUS.pill, paddingHorizontal: 12, paddingVertical: 5, marginBottom: SPACE.sm },
+  specText: { fontFamily: FONT.bodySemi, fontSize: 12, color: C.accent2 },
+  langRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: SPACE.md },
+  langText: { fontFamily: FONT.body, fontSize: 12, color: C.muted },
+  statsRow: { flexDirection: 'row', alignItems: 'center', marginBottom: SPACE.md },
+  stat: { flex: 1, alignItems: 'center' },
+  statDivider: { width: 1, height: 28, backgroundColor: C.borderSoft },
+  statValue: { fontFamily: FONT.displayBold, fontSize: 18, color: C.ink },
+  priceValue: { fontFamily: FONT.displayBold, fontSize: 18, color: C.gold },
+  statLabel: { fontFamily: FONT.body, fontSize: 11, color: C.muted, marginTop: 2 },
+  trialRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: C.cream, borderRadius: RADIUS.md, paddingHorizontal: 14, paddingVertical: 12, marginBottom: SPACE.md },
+  trialLabel: { fontFamily: FONT.bodyMed, fontSize: 13, color: C.text },
+  trialFree: { fontFamily: FONT.bodyBold, fontSize: 14, color: C.gold },
+  btnRow: { flexDirection: 'row', gap: 10 },
+  outlineBtn: { flex: 1, borderWidth: 1.5, borderColor: C.borderSoft, borderRadius: RADIUS.md, paddingVertical: 12, alignItems: 'center', backgroundColor: C.cream },
+  outlineText: { fontFamily: FONT.bodyBold, fontSize: 14, color: C.accent2 },
+  fillBtn: { borderRadius: RADIUS.md, paddingVertical: 12, alignItems: 'center' },
+  fillText: { fontFamily: FONT.bodyBold, fontSize: 14, color: C.white },
 });
