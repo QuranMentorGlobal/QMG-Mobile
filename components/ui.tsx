@@ -21,7 +21,7 @@ import { C, FONT, G, RADIUS, SPACE, STATUS_COLORS } from '@/lib/theme';
 export function Screen({
   children,
   scroll = true,
-  edges = ['top'],
+  edges = [],
 }: {
   children: React.ReactNode;
   scroll?: boolean;

@@ -47,6 +47,8 @@ export const G = {
   primary: ['#166534', '#C9A227'] as const,
   // soft (forest -> gold lighter)
   soft: ['#166534', '#C9A227'] as const,
+  // drawer panel (forest -> deep emerald), matches web side menu
+  drawer: ['#175E33', '#0F3A22'] as const,
 } as const;
 
 export const RADIUS = { sm: 8, md: 12, lg: 16, xl: 22, pill: 999 } as const;

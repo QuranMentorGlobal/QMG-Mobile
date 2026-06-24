@@ -2,7 +2,7 @@
 // Shared profile/account screen for all roles: avatar, name, role, email, sign out.
 
 import { Alert, StyleSheet, Text, View } from 'react-native';
-import { Avatar, Button, Card, GradientHeader, Screen, SectionTitle } from '@/components/ui';
+import { Avatar, Button, Card, Screen, SectionTitle } from '@/components/ui';
 import { useAuth } from '@/lib/auth';
 import { C, FONT, SPACE } from '@/lib/theme';
 
@@ -26,7 +26,7 @@ export function ProfileScreen() {
 
   return (
     <Screen>
-      <GradientHeader greeting="Account" name={name} subtitle={profile?.email ?? undefined} />
+      <Text style={styles.pageTitle}>Account</Text>
 
       <Card style={styles.row}>
         <Avatar uri={profile?.avatar_url} name={name} size={56} />
@@ -64,6 +64,7 @@ function Detail({ label, value, last }: { label: string; value: string; last?: b
 }
 
 const styles = StyleSheet.create({
+  pageTitle: { fontFamily: FONT.displayBold, fontSize: 22, color: C.ink, marginTop: 4, marginBottom: SPACE.md },
   row: { flexDirection: 'row', alignItems: 'center', gap: SPACE.md },
   name: { fontFamily: FONT.displayBold, fontSize: 18, color: C.ink },
   role: { fontFamily: FONT.bodyMed, fontSize: 13, color: C.gold, marginTop: 2 },

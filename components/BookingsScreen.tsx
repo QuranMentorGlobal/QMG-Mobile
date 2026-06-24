@@ -4,7 +4,7 @@
 import { useCallback, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect } from 'expo-router';
-import { Card, GradientHeader, Screen, StatusBadge, EmptyState, Loading } from '@/components/ui';
+import { Card, Screen, StatusBadge, EmptyState, Loading } from '@/components/ui';
 import { useAuth } from '@/lib/auth';
 import { fetchStudentBookings, fetchTeacherBookings, type Booking } from '@/lib/db';
 import { C, FONT, SPACE } from '@/lib/theme';
@@ -37,7 +37,7 @@ export function BookingsScreen({ as }: { as: 'student' | 'teacher' }) {
 
   return (
     <Screen>
-      <GradientHeader greeting="Bookings" name={as === 'teacher' ? 'Your students' : 'Your bookings'} subtitle={`${bookings.length} total`} />
+      <Text style={styles.pageTitle}>{as === 'teacher' ? 'Your students' : 'Your bookings'}</Text>
       {bookings.length === 0 ? (
         <EmptyState
           title="No bookings yet"
@@ -69,6 +69,7 @@ export function BookingsScreen({ as }: { as: 'student' | 'teacher' }) {
 }
 
 const styles = StyleSheet.create({
+  pageTitle: { fontFamily: FONT.displayBold, fontSize: 22, color: C.ink, marginTop: 4, marginBottom: SPACE.md },
   row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   title: { fontFamily: FONT.bodyBold, fontSize: 14, color: C.ink },
   meta: { fontFamily: FONT.body, fontSize: 12, color: C.muted, marginTop: 6 },

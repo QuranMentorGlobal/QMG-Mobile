@@ -1,26 +1,17 @@
 // app/student/dashboard.tsx
-// Student home: greeting + KPI tiles (active bookings, completed lessons, upcoming)
-// and the next upcoming lessons, all from the same Supabase the web app uses.
-
 import { useCallback, useState } from 'react';
-import { RefreshControl, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect } from 'expo-router';
-import { GradientHeader, Card, KpiTile, SectionTitle, Screen, StatusBadge, EmptyState, Loading } from '@/components/ui';
+import { Ionicons } from '@expo/vector-icons';
+import { Screen, Card, StatusBadge, EmptyState, Loading } from '@/components/ui';
+import { HeroCard, KpiGrid, ColorKpi } from '@/components/dashboard';
 import { useAuth } from '@/lib/auth';
 import { fetchStudentBookings, fetchUpcomingLessons, countCompletedLessons, type Booking, type Lesson } from '@/lib/db';
 import { C, FONT, SPACE } from '@/lib/theme';
 
-function greetingFor(): string {
-  const h = new Date().getHours();
-  if (h < 12) return 'Good morning';
-  if (h < 18) return 'Good afternoon';
-  return 'Good evening';
-}
-
 export default function StudentDashboard() {
-  const { session, profile } = useAuth();
+  const { session } = useAuth();
   const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [upcoming, setUpcoming] = useState<Lesson[]>([]);
   const [completed, setCompleted] = useState(0);
@@ -36,48 +27,28 @@ export default function StudentDashboard() {
     setLoading(false);
   }, [session?.user?.id]);
 
-  useFocusEffect(
-    useCallback(() => {
-      load();
-    }, [load])
-  );
+  useFocusEffect(useCallback(() => { load(); }, [load]));
 
-  async function onRefresh() {
-    setRefreshing(true);
-    await load();
-    setRefreshing(false);
-  }
+  if (loading) return <Screen scroll={false}><Loading label="Loading your dashboard…" /></Screen>;
 
   const active = bookings.filter((b) => ['confirmed', 'active', 'pending'].includes((b.status ?? '').toLowerCase())).length;
-  const name = profile?.first_name ?? 'there';
-
-  if (loading) {
-    return (
-      <Screen scroll={false}>
-        <Loading label="Loading your dashboard…" />
-      </Screen>
-    );
-  }
 
   return (
     <Screen>
-      <GradientHeader greeting={greetingFor()} name={`Welcome back, ${name}`} subtitle="Here's your learning at a glance." />
+      <HeroCard eyebrow="QURANMENTOR GLOBAL" title="Continue Learning" subtitle="Your journey through the words of Allah." />
+      <KpiGrid>
+        <ColorKpi label="Active Bookings" value={active} tone="green" icon={<Ionicons name="calendar-outline" size={18} color={C.forest} />} />
+        <ColorKpi label="Lessons Done" value={completed} tone="gold" icon={<Ionicons name="checkmark-done-outline" size={18} color={C.accent2} />} />
+        <ColorKpi label="Upcoming" value={upcoming.length} tone="indigo" icon={<Ionicons name="time-outline" size={18} color="#4F46E5" />} />
+        <ColorKpi label="Total Bookings" value={bookings.length} tone="green" icon={<Ionicons name="book-outline" size={18} color={C.forest} />} />
+      </KpiGrid>
 
-      <View style={styles.kpiRow}>
-        <KpiTile label="Active bookings" value={active} />
-        <KpiTile label="Lessons done" value={completed} accent />
-      </View>
-      <View style={[styles.kpiRow, { marginTop: SPACE.sm }]}>
-        <KpiTile label="Upcoming" value={upcoming.length} />
-        <KpiTile label="Total bookings" value={bookings.length} />
-      </View>
-
-      <SectionTitle>Upcoming lessons</SectionTitle>
+      <Text style={styles.section}>Upcoming lessons</Text>
       {upcoming.length === 0 ? (
         <EmptyState title="No upcoming lessons" body="Book a teacher to schedule your next session." />
       ) : (
         upcoming.map((l) => (
-          <Card key={l.id} style={styles.lessonRow}>
+          <Card key={l.id} style={styles.row}>
             <View style={{ flex: 1 }}>
               <Text style={styles.lessonTitle}>{formatWhen(l.scheduled_at)}</Text>
               <Text style={styles.lessonMeta}>{l.duration_mins ?? 30} min lesson</Text>
@@ -93,13 +64,12 @@ export default function StudentDashboard() {
 function formatWhen(iso: string | null): string {
   if (!iso) return 'Scheduled';
   const d = new Date(iso);
-  return d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }) +
-    ' · ' + d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+  return d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }) + ' · ' + d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
 }
 
 const styles = StyleSheet.create({
-  kpiRow: { flexDirection: 'row', gap: SPACE.sm },
-  lessonRow: { flexDirection: 'row', alignItems: 'center', gap: SPACE.md },
+  section: { fontFamily: FONT.displayBold, fontSize: 16, color: C.ink, marginTop: SPACE.sm, marginBottom: SPACE.sm },
+  row: { flexDirection: 'row', alignItems: 'center', gap: SPACE.md },
   lessonTitle: { fontFamily: FONT.bodySemi, fontSize: 14, color: C.ink },
   lessonMeta: { fontFamily: FONT.body, fontSize: 12, color: C.muted, marginTop: 3 },
 });

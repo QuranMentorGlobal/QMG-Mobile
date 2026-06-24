@@ -4,7 +4,7 @@
 import { useCallback, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect } from 'expo-router';
-import { Avatar, Card, GradientHeader, Screen, EmptyState, Loading } from '@/components/ui';
+import { Avatar, Card, Screen, EmptyState, Loading } from '@/components/ui';
 import { useAuth } from '@/lib/auth';
 import { fetchChildren, type Child } from '@/lib/db';
 import { C, FONT, SPACE } from '@/lib/theme';
@@ -36,7 +36,7 @@ export default function Children() {
 
   return (
     <Screen>
-      <GradientHeader greeting="Children" name="Linked accounts" subtitle={`${children.length} linked`} />
+      <Text style={styles.pageTitle}>Linked accounts</Text>
       {children.length === 0 ? (
         <EmptyState title="No children linked yet" body="Link a child's account on the website to manage their learning here." />
       ) : (
@@ -58,6 +58,7 @@ export default function Children() {
 }
 
 const styles = StyleSheet.create({
+  pageTitle: { fontFamily: FONT.displayBold, fontSize: 22, color: C.ink, marginTop: 4, marginBottom: SPACE.md },
   row: { flexDirection: 'row', alignItems: 'center', gap: SPACE.md },
   name: { fontFamily: FONT.bodyBold, fontSize: 15, color: C.ink },
   meta: { fontFamily: FONT.body, fontSize: 12, color: C.muted, marginTop: 2 },

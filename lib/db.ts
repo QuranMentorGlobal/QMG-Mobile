@@ -117,3 +117,38 @@ export async function fetchChildren(parentId: string): Promise<Child[]> {
 export function teacherName(t: PublicTeacher): string {
   return [t.first_name, t.last_name].filter(Boolean).join(' ') || 'Teacher';
 }
+
+// ── Dashboard extras (defensive: return 0 on any schema mismatch) ───────────────
+
+export async function countTodayLessons(bookingIds: string[]): Promise<number> {
+  if (bookingIds.length === 0) return 0;
+  const start = new Date();
+  start.setHours(0, 0, 0, 0);
+  const end = new Date();
+  end.setHours(23, 59, 59, 999);
+  try {
+    const { count } = await (supabase as any)
+      .from('lessons')
+      .select('id', { count: 'exact', head: true })
+      .in('booking_id', bookingIds)
+      .gte('scheduled_at', start.toISOString())
+      .lte('scheduled_at', end.toISOString());
+    return count ?? 0;
+  } catch {
+    return 0;
+  }
+}
+
+// Tries the teacher_earnings ledger; returns 0 if the table/columns differ.
+export async function fetchTeacherEarnings(teacherId: string): Promise<number> {
+  try {
+    const { data } = await (supabase as any)
+      .from('teacher_earnings')
+      .select('amount, net_amount')
+      .eq('teacher_id', teacherId);
+    if (!data) return 0;
+    return (data as any[]).reduce((sum, r) => sum + Number(r.net_amount ?? r.amount ?? 0), 0);
+  } catch {
+    return 0;
+  }
+}

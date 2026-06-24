@@ -1,15 +1,12 @@
 // app/teacher/_layout.tsx
-import { RoleTabs } from '@/components/RoleTabs';
+import { Stack } from 'expo-router';
+import { RoleShell } from '@/components/RoleShell';
+import { C } from '@/lib/theme';
 
 export default function TeacherLayout() {
   return (
-    <RoleTabs
-      role="teacher"
-      tabs={[
-        { name: 'dashboard', title: 'Home', icon: 'grid-outline' },
-        { name: 'bookings', title: 'Bookings', icon: 'calendar-outline' },
-        { name: 'profile', title: 'Profile', icon: 'person-outline' },
-      ]}
-    />
+    <RoleShell role="teacher">
+      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: C.cream } }} />
+    </RoleShell>
   );
 }

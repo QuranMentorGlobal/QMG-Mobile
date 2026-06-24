@@ -1,15 +1,12 @@
 // app/parent/_layout.tsx
-import { RoleTabs } from '@/components/RoleTabs';
+import { Stack } from 'expo-router';
+import { RoleShell } from '@/components/RoleShell';
+import { C } from '@/lib/theme';
 
 export default function ParentLayout() {
   return (
-    <RoleTabs
-      role="parent"
-      tabs={[
-        { name: 'dashboard', title: 'Home', icon: 'grid-outline' },
-        { name: 'children', title: 'Children', icon: 'people-outline' },
-        { name: 'profile', title: 'Profile', icon: 'person-outline' },
-      ]}
-    />
+    <RoleShell role="parent">
+      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: C.cream } }} />
+    </RoleShell>
   );
 }

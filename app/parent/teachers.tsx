@@ -1,5 +1,5 @@
-// app/student/teachers.tsx
+// app/parent/teachers.tsx
 import { TeachersScreen } from '@/components/TeachersScreen';
-export default function StudentTeachers() {
+export default function ParentTeachers() {
   return <TeachersScreen />;
 }

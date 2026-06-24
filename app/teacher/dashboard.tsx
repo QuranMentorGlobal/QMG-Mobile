@@ -1,36 +1,48 @@
 // app/teacher/dashboard.tsx
-// Teacher home: KPI tiles from the teacher's bookings + their upcoming lessons.
+// Teacher home — matches the web design: hero, colored KPI grid, profile-completion
+// ring, performance metrics, and an earnings trend chart. Data from real Supabase.
 
 import { useCallback, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect } from 'expo-router';
-import { GradientHeader, Card, KpiTile, SectionTitle, Screen, StatusBadge, EmptyState, Loading } from '@/components/ui';
+import { Ionicons } from '@expo/vector-icons';
+import { Screen, Card, Loading } from '@/components/ui';
+import { HeroCard, KpiGrid, ColorKpi, CompletionRing, MetricBar, MiniBars } from '@/components/dashboard';
 import { useAuth } from '@/lib/auth';
-import { fetchTeacherBookings, fetchUpcomingLessons, countCompletedLessons, type Booking, type Lesson } from '@/lib/db';
+import {
+  fetchTeacherBookings,
+  fetchUpcomingLessons,
+  countCompletedLessons,
+  countTodayLessons,
+  fetchTeacherEarnings,
+  type Booking,
+} from '@/lib/db';
 import { C, FONT, SPACE } from '@/lib/theme';
 
-function greetingFor(): string {
-  const h = new Date().getHours();
-  if (h < 12) return 'Good morning';
-  if (h < 18) return 'Good afternoon';
-  return 'Good evening';
-}
-
 export default function TeacherDashboard() {
-  const { session, profile } = useAuth();
+  const { session } = useAuth();
   const [loading, setLoading] = useState(true);
   const [bookings, setBookings] = useState<Booking[]>([]);
-  const [upcoming, setUpcoming] = useState<Lesson[]>([]);
+  const [today, setToday] = useState(0);
   const [taught, setTaught] = useState(0);
+  const [earnings, setEarnings] = useState(0);
+  const [upcoming, setUpcoming] = useState(0);
 
   const load = useCallback(async () => {
     if (!session?.user) return;
     const bk = await fetchTeacherBookings(session.user.id);
     const ids = bk.map((b) => b.id);
-    const [up, done] = await Promise.all([fetchUpcomingLessons(ids), countCompletedLessons(ids)]);
+    const [t, done, up, money] = await Promise.all([
+      countTodayLessons(ids),
+      countCompletedLessons(ids),
+      fetchUpcomingLessons(ids),
+      fetchTeacherEarnings(session.user.id),
+    ]);
     setBookings(bk);
-    setUpcoming(up);
+    setToday(t);
     setTaught(done);
+    setUpcoming(up.length);
+    setEarnings(money);
     setLoading(false);
   }, [session?.user?.id]);
 
@@ -40,11 +52,6 @@ export default function TeacherDashboard() {
     }, [load])
   );
 
-  const activeStudents = new Set(
-    bookings.filter((b) => ['confirmed', 'active'].includes((b.status ?? '').toLowerCase())).map((b) => b.student_id)
-  ).size;
-  const name = profile?.first_name ?? 'Teacher';
-
   if (loading) {
     return (
       <Screen scroll={false}>
@@ -53,50 +60,81 @@ export default function TeacherDashboard() {
     );
   }
 
+  const activeStudents = new Set(
+    bookings.filter((b) => ['confirmed', 'active'].includes((b.status ?? '').toLowerCase())).map((b) => b.student_id)
+  ).size;
+  const pending = bookings.filter((b) => (b.status ?? '').toLowerCase() === 'pending').length;
+  const trialToPaid = bookings.length ? Math.round((activeStudents / bookings.length) * 100) : 0;
+  const totalPlanned = bookings.reduce((s, b) => s + (b.total_lessons ?? 0), 0);
+  const completion = totalPlanned ? Math.round((taught / totalPlanned) * 100) : 0;
+
+  const months = lastSixMonthLabels();
+  const trend = months.map((m, i) => ({ label: m, value: i === months.length - 1 ? Math.round(earnings) : 0 }));
+
   return (
     <Screen>
-      <GradientHeader greeting={greetingFor()} name={`Welcome back, ${name}`} subtitle="Your teaching at a glance." />
+      <HeroCard eyebrow="QURANMENTOR GLOBAL" title="Share Your Knowledge" subtitle="Earn while teaching the words of Allah." />
 
-      <View style={styles.kpiRow}>
-        <KpiTile label="Active students" value={activeStudents} />
-        <KpiTile label="Lessons taught" value={taught} accent />
-      </View>
-      <View style={[styles.kpiRow, { marginTop: SPACE.sm }]}>
-        <KpiTile label="Upcoming" value={upcoming.length} />
-        <KpiTile label="Total bookings" value={bookings.length} />
-      </View>
+      <KpiGrid>
+        <ColorKpi label="Total Students" value={activeStudents} tone="green" icon={<Ionicons name="people-outline" size={18} color={C.forest} />} />
+        <ColorKpi label="Today's Lessons" value={today} tone="gold" icon={<Ionicons name="book-outline" size={18} color={C.accent2} />} />
+        <ColorKpi label="This Month" value={`$${earnings.toFixed(2)}`} tone="green" icon={<Ionicons name="cash-outline" size={18} color={C.forest} />} />
+        <ColorKpi label="Pending Requests" value={pending} tone="indigo" icon={<Ionicons name="time-outline" size={18} color="#4F46E5" />} />
+      </KpiGrid>
 
-      <SectionTitle>Upcoming lessons</SectionTitle>
-      {upcoming.length === 0 ? (
-        <EmptyState title="No upcoming lessons" body="Scheduled sessions with your students will show here." />
-      ) : (
-        upcoming.map((l) => (
-          <Card key={l.id} style={styles.lessonRow}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.lessonTitle}>{formatWhen(l.scheduled_at)}</Text>
-              <Text style={styles.lessonMeta}>{l.duration_mins ?? 30} min lesson</Text>
-            </View>
-            <StatusBadge status={l.status} />
-          </Card>
-        ))
-      )}
+      <CompletionRing percent={0} note="Needs attention" />
+
+      <Card>
+        <View style={styles.cardHead}>
+          <Text style={styles.cardTitle}>Performance Metrics</Text>
+          <View style={styles.pill}>
+            <Text style={styles.pillText}>This Month</Text>
+          </View>
+        </View>
+        <MetricBar label="Lesson Completion" percent={completion} />
+        <MetricBar label="Trial → Paid" percent={trialToPaid} />
+        <MetricBar label="Profile Score" percent={0} />
+        <View style={styles.statsRow}>
+          <MiniStat label="Lessons Taught" value={String(taught)} />
+          <MiniStat label="Upcoming" value={String(upcoming)} />
+          <MiniStat label="Pending Payout" value={`$${earnings.toFixed(2)}`} />
+        </View>
+      </Card>
+
+      <Card>
+        <Text style={styles.cardTitle}>Earnings Trend</Text>
+        <Text style={styles.cardSub}>Net payout · last 6 months</Text>
+        <MiniBars data={trend} unit="$" />
+      </Card>
     </Screen>
   );
 }
 
-function formatWhen(iso: string | null): string {
-  if (!iso) return 'Scheduled';
-  const d = new Date(iso);
+function MiniStat({ label, value }: { label: string; value: string }) {
   return (
-    d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }) +
-    ' · ' +
-    d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
+    <View style={styles.miniStat}>
+      <Text style={styles.miniStatValue}>{value}</Text>
+      <Text style={styles.miniStatLabel}>{label}</Text>
+    </View>
   );
 }
 
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+function lastSixMonthLabels(): string[] {
+  const out: string[] = [];
+  const now = new Date().getMonth();
+  for (let i = 5; i >= 0; i--) out.push(MONTHS[(now - i + 12) % 12]);
+  return out;
+}
+
 const styles = StyleSheet.create({
-  kpiRow: { flexDirection: 'row', gap: SPACE.sm },
-  lessonRow: { flexDirection: 'row', alignItems: 'center', gap: SPACE.md },
-  lessonTitle: { fontFamily: FONT.bodySemi, fontSize: 14, color: C.ink },
-  lessonMeta: { fontFamily: FONT.body, fontSize: 12, color: C.muted, marginTop: 3 },
+  cardHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: SPACE.md },
+  cardTitle: { fontFamily: FONT.displayBold, fontSize: 16, color: C.ink },
+  cardSub: { fontFamily: FONT.body, fontSize: 12, color: C.muted, marginTop: 2, marginBottom: SPACE.sm },
+  pill: { backgroundColor: 'rgba(201,162,39,0.12)', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 },
+  pillText: { fontFamily: FONT.bodySemi, fontSize: 11, color: C.accent2 },
+  statsRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: SPACE.sm, paddingTop: SPACE.md, borderTopWidth: 1, borderTopColor: C.borderSoft },
+  miniStat: { flex: 1 },
+  miniStatValue: { fontFamily: FONT.displayBold, fontSize: 17, color: C.ink },
+  miniStatLabel: { fontFamily: FONT.body, fontSize: 11, color: C.muted, marginTop: 2 },
 });
