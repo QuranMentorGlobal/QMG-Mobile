@@ -1,5 +1,3 @@
 // app/teacher/profile.tsx
-import { ProfileScreen } from '@/components/ProfileScreen';
-export default function Profile() {
-  return <ProfileScreen />;
-}
+import { TeacherProfileScreen } from '@/components/TeacherProfileScreen';
+export default function Profile() { return <TeacherProfileScreen />; }

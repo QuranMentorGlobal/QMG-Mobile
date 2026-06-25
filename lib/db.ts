@@ -886,3 +886,258 @@ export async function subscribeToCourse(args: {
     return { ok: true, bookingId: data.id };
   }, { ok: false, error: 'Could not subscribe.' });
 }
+
+// ── Teacher Profile (edit + verification workflow) ───────────────────────────
+
+export interface TeacherProfileData {
+  tpId: string; status: string; rejectionReason: string;
+  firstName: string; lastName: string; gender: string; country: string; phone: string;
+  bio: string; welcome: string; photoUrl: string;
+  yearsExp: string; ijazah: boolean; specializations: string[]; languages: string[]; availableDays: string[];
+  hourlyRate: string; trialRate: string;
+  videoUrl: string; idDocUrl: string; ijazahDocUrl: string;
+  flags: { email_verified: boolean; phone_verified: boolean; identity_verified: boolean; quran_mentor_verified: boolean; ijazah_verified: boolean };
+  notify: { notify_bookings: boolean; notify_messages: boolean; notify_payouts: boolean; notify_marketing: boolean };
+}
+
+export async function fetchTeacherProfile(uid: string): Promise<TeacherProfileData | null> {
+  return safe(async () => {
+    const { data: prof } = await (supabase as any).from('profiles').select('*').eq('id', uid).single();
+    const p = (prof as any) || {};
+    const { data: tp } = await (supabase as any).from('teacher_profiles').select('*').eq('user_id', uid).single();
+    const t = (tp as any) || {};
+    return {
+      tpId: t.id || '', status: t.status || 'not_submitted', rejectionReason: t.rejection_reason || '',
+      firstName: p.first_name || '', lastName: p.last_name || '', gender: p.gender || '', country: p.country || '', phone: p.phone || '',
+      bio: p.bio || '', welcome: p.welcome_message || '', photoUrl: t.profile_photo_url || p.avatar_url || '',
+      yearsExp: t.years_experience != null ? String(t.years_experience) : '', ijazah: !!t.ijazah_verified || !!t.ijazah_document_url,
+      specializations: t.specializations || [], languages: t.teaching_languages || [], availableDays: t.available_days || [],
+      hourlyRate: t.hourly_rate_usd != null ? String(t.hourly_rate_usd) : '', trialRate: t.trial_rate_usd != null ? String(t.trial_rate_usd) : '',
+      videoUrl: t.intro_video_url || '', idDocUrl: t.identity_document_url || '', ijazahDocUrl: t.ijazah_document_url || '',
+      flags: {
+        email_verified: !!t.email_verified, phone_verified: !!t.phone_verified, identity_verified: !!t.identity_verified,
+        quran_mentor_verified: !!t.quran_mentor_verified, ijazah_verified: !!t.ijazah_verified,
+      },
+      notify: {
+        notify_bookings: p.notify_bookings !== false, notify_messages: p.notify_messages !== false,
+        notify_payouts: p.notify_payouts !== false, notify_marketing: p.notify_marketing === true,
+      },
+    };
+  }, null);
+}
+
+export async function saveTeacherProfile(args: {
+  uid: string; tpId: string; reverify: boolean; changedFields: string[];
+  firstName: string; lastName: string; gender: string; country: string; phone: string; bio: string; welcome: string; photoUrl: string;
+  yearsExp: string; specializations: string[]; languages: string[]; availableDays: string[]; hourlyRate: string; trialRate: string;
+  videoUrl: string; idDocUrl: string; ijazahDocUrl: string;
+}): Promise<{ ok: boolean; error?: string }> {
+  return safe(async () => {
+    await (supabase as any).from('profiles').update({
+      first_name: args.firstName, last_name: args.lastName, gender: args.gender, country: args.country,
+      phone: args.phone, bio: args.bio, welcome_message: args.welcome, avatar_url: args.photoUrl,
+    }).eq('id', args.uid);
+
+    const tp: any = {
+      user_id: args.uid, years_experience: Number(args.yearsExp) || 0, specializations: args.specializations,
+      teaching_languages: args.languages, available_days: args.availableDays,
+      hourly_rate_usd: Number(args.hourlyRate) || 0, trial_rate_usd: Number(args.trialRate) || 0,
+      profile_photo_url: args.photoUrl,
+    };
+    if (args.videoUrl) tp.intro_video_url = args.videoUrl;
+    if (args.idDocUrl) tp.identity_document_url = args.idDocUrl;
+    if (args.ijazahDocUrl) tp.ijazah_document_url = args.ijazahDocUrl;
+    if (args.reverify) tp.status = 'pending_review';
+
+    if (args.tpId) await (supabase as any).from('teacher_profiles').update(tp).eq('id', args.tpId);
+    else await (supabase as any).from('teacher_profiles').upsert(tp, { onConflict: 'user_id' });
+
+    if (args.reverify && args.tpId) {
+      try { await (supabase as any).from('profile_change_requests').insert({ teacher_user_id: args.uid, teacher_profile_id: args.tpId, change_type: 'sensitive', status: 'pending', changes: { fields: args.changedFields } }); } catch {}
+      try { await fetch(`${API_BASE}/api/email`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'profile_change', teacherName: `${args.firstName} ${args.lastName}`, changeType: 'sensitive', fields: args.changedFields }) }); } catch {}
+    }
+    return { ok: true } as { ok: boolean; error?: string };
+  }, { ok: false, error: 'Could not save profile.' });
+}
+
+export async function saveNotifyPrefs(uid: string, prefs: { notify_bookings: boolean; notify_messages: boolean; notify_payouts: boolean; notify_marketing: boolean }): Promise<boolean> {
+  return safe(async () => { const { error } = await (supabase as any).from('profiles').update(prefs).eq('id', uid); return !error; }, false);
+}
+
+export async function updatePassword(newPassword: string): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const { error } = await (supabase as any).auth.updateUser({ password: newPassword });
+    if (error) return { ok: false, error: error.message };
+    return { ok: true };
+  } catch (e: any) { return { ok: false, error: e?.message || 'Could not update password.' }; }
+}
+
+// ── Teacher Dashboard (full metrics, mirrors web) ────────────────────────────
+
+export interface TeacherDashFull {
+  totalStudents: number; todayLessons: number; monthlyEarnings: number; pending: number;
+  completionRate: number; conversionRate: number; profileScore: number;
+  teachingHours: number; trialBookings: number; convertedTrials: number; pendingPayout: number; avgRating: number;
+  earningsHistory: { label: string; value: number }[];
+  lessonHistory: { label: string; value: number }[];
+  courses: { trial: number; live: number; recorded: number; enrolments: number };
+  upcoming: { id: string; scheduled_at: string | null; status: string | null; duration_mins: number | null }[];
+  pendingRequests: { id: string; student_id: string | null; start_date: string | null; session_time: string | null }[];
+  badgesEarned: number;
+}
+
+export async function fetchTeacherDashboardFull(uid: string): Promise<TeacherDashFull> {
+  const M = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const now = new Date();
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const sixMoAgo = new Date(now.getFullYear(), now.getMonth() - 5, 1);
+  const today = now.toISOString().split('T')[0];
+  const labels6: { label: string; value: number }[] = [];
+  for (let i = 5; i >= 0; i--) { const d = new Date(now.getFullYear(), now.getMonth() - i, 1); labels6.push({ label: M[d.getMonth()], value: 0 }); }
+  const monthIdx = (iso: string) => { const d = new Date(iso); return (now.getFullYear() - d.getFullYear()) * 12 + (now.getMonth() - d.getMonth()); };
+
+  return safe(async () => {
+    const sb = supabase as any;
+    const [bk, todayCnt, students, earn, completed, cancelled, lifetime, trials, paid, payouts, reviews, courseRows] = await Promise.all([
+      sb.from('bookings').select('id, student_id, start_date, session_time, status').eq('teacher_id', uid).eq('status', 'pending').order('start_date', { ascending: true }),
+      sb.from('lessons').select('id', { count: 'exact', head: true }).eq('teacher_id', uid).gte('scheduled_at', `${today}T00:00:00`).lte('scheduled_at', `${today}T23:59:59`),
+      sb.from('bookings').select('student_id').eq('teacher_id', uid).eq('status', 'confirmed').limit(100000),
+      sb.from('teacher_earnings').select('net_amount_usd, created_at').eq('teacher_id', uid).gte('created_at', sixMoAgo.toISOString()),
+      sb.from('lessons').select('id', { count: 'exact', head: true }).eq('teacher_id', uid).eq('status', 'completed'),
+      sb.from('lessons').select('id', { count: 'exact', head: true }).eq('teacher_id', uid).eq('status', 'cancelled'),
+      sb.from('lessons').select('duration_mins, scheduled_at, status').eq('teacher_id', uid).eq('status', 'completed').limit(100000),
+      sb.from('bookings').select('student_id, is_trial').eq('teacher_id', uid).eq('is_trial', true).limit(100000),
+      sb.from('payments').select('student_id, gross_amount_usd, payment_type').eq('teacher_id', uid).eq('status', 'succeeded').limit(100000),
+      sb.from('teacher_payouts').select('amount_usd').eq('teacher_id', uid).eq('status', 'pending'),
+      sb.from('reviews').select('rating').eq('teacher_id', uid).eq('is_public', true),
+      sb.from('courses').select('id, product_type').eq('teacher_id', uid),
+    ]);
+
+    // earnings this month + 6-month history
+    const earnRows = (earn.data as any[]) || [];
+    const earningsHistory = labels6.map((x) => ({ ...x }));
+    let monthlyEarnings = 0;
+    earnRows.forEach((p) => {
+      const net = Number(p.net_amount_usd) || 0;
+      const idx = monthIdx(p.created_at);
+      if (idx >= 0 && idx <= 5) earningsHistory[5 - idx].value += net;
+      if (new Date(p.created_at) >= monthStart) monthlyEarnings += net;
+    });
+    earningsHistory.forEach((x) => (x.value = Math.round(x.value)));
+
+    // lessons taught history (completed per month)
+    const lessonHistory = labels6.map((x) => ({ ...x }));
+    ((lifetime.data as any[]) || []).forEach((l) => {
+      if (!l.scheduled_at) return;
+      const idx = monthIdx(l.scheduled_at);
+      if (idx >= 0 && idx <= 5) lessonHistory[5 - idx].value++;
+    });
+    const teachingHours = Math.round(((lifetime.data as any[]) || []).reduce((s, l) => s + (Number(l.duration_mins) || 60), 0) / 60);
+
+    const completedN = completed.count || 0;
+    const cancelledN = cancelled.count || 0;
+    const completionRate = completedN + cancelledN > 0 ? Math.round((completedN / (completedN + cancelledN)) * 100) : 0;
+
+    const trialIds = new Set(((trials.data as any[]) || []).map((t) => t.student_id).filter(Boolean));
+    const paidIds = new Set(((paid.data as any[]) || []).filter((p) => (Number(p.gross_amount_usd) || 0) > 0 && p.payment_type !== 'trial').map((p) => p.student_id).filter(Boolean));
+    let convertedTrials = 0;
+    trialIds.forEach((sid) => { if (paidIds.has(sid)) convertedTrials++; });
+    const trialBookings = trialIds.size;
+    const conversionRate = trialBookings > 0 ? Math.round((convertedTrials / trialBookings) * 100) : 0;
+
+    const pendingPayout = ((payouts.data as any[]) || []).reduce((s, p) => s + (Number(p.amount_usd) || 0), 0);
+    const revArr = (reviews.data as any[]) || [];
+    const avgRating = revArr.length ? revArr.reduce((s, r) => s + (Number(r.rating) || 0), 0) / revArr.length : 0;
+
+    const cRows = (courseRows.data as any[]) || [];
+    const cBy = (t: string) => cRows.filter((c) => (c.product_type ?? '') === t).length;
+    let enrolments = 0;
+    if (cRows.length) {
+      const { count } = await sb.from('enrollments').select('id', { count: 'exact', head: true }).in('course_id', cRows.map((c) => c.id));
+      enrolments = count || 0;
+    }
+
+    const up = await safe(async () => {
+      const { data } = await sb.from('lessons').select('id, scheduled_at, status, duration_mins').eq('teacher_id', uid).in('status', ['scheduled', 'live']).gte('scheduled_at', now.toISOString()).order('scheduled_at', { ascending: true }).limit(5);
+      return ((data as any[]) || []).map((l) => ({ id: l.id, scheduled_at: l.scheduled_at, status: l.status, duration_mins: l.duration_mins }));
+    }, [] as TeacherDashFull['upcoming']);
+
+    const profileScore = await safe(async () => {
+      const { data } = await sb.from('teacher_profiles').select('profile_photo_url, years_experience, specializations, teaching_languages, available_days, hourly_rate_usd, intro_video_url, identity_document_url, email_verified, phone_verified, identity_verified, quran_mentor_verified').eq('user_id', uid).single();
+      const t = (data as any) || {};
+      const items = [!!t.profile_photo_url, !!t.years_experience, (t.specializations || []).length > 0, (t.teaching_languages || []).length > 0, (t.available_days || []).length > 0, !!t.hourly_rate_usd, !!t.intro_video_url, !!t.identity_document_url, !!t.email_verified, !!t.phone_verified, !!t.identity_verified, !!t.quran_mentor_verified];
+      return Math.round((items.filter(Boolean).length / items.length) * 100);
+    }, 0);
+
+    return {
+      totalStudents: new Set(((students.data as any[]) || []).map((b) => b.student_id).filter(Boolean)).size,
+      todayLessons: todayCnt.count || 0,
+      monthlyEarnings: Math.round(monthlyEarnings),
+      pending: ((bk.data as any[]) || []).length,
+      completionRate, conversionRate, profileScore,
+      teachingHours, trialBookings, convertedTrials, pendingPayout: Math.round(pendingPayout), avgRating,
+      earningsHistory, lessonHistory,
+      courses: { trial: cBy('trial'), live: cBy('live'), recorded: cBy('recorded'), enrolments },
+      upcoming: up,
+      pendingRequests: ((bk.data as any[]) || []).map((b) => ({ id: b.id, student_id: b.student_id, start_date: b.start_date, session_time: b.session_time })),
+      badgesEarned: 0,
+    };
+  }, {
+    totalStudents: 0, todayLessons: 0, monthlyEarnings: 0, pending: 0, completionRate: 0, conversionRate: 0, profileScore: 0,
+    teachingHours: 0, trialBookings: 0, convertedTrials: 0, pendingPayout: 0, avgRating: 0,
+    earningsHistory: labels6, lessonHistory: labels6, courses: { trial: 0, live: 0, recorded: 0, enrolments: 0 }, upcoming: [], pendingRequests: [], badgesEarned: 0,
+  });
+}
+
+// ── Teacher Course Studio (list + stats + manage) ────────────────────────────
+
+export interface StudioCourse {
+  id: string; title: string; category: string | null; product_type: string | null;
+  price_usd: number | null; is_free: boolean; is_active: boolean; duration_mins: number | null;
+  enrollments: number; lessonCount: number; completedStudents: number; avgProgress: number;
+}
+export interface CourseStudio {
+  courses: StudioCourse[];
+  stats: { total: number; active: number; totalEnrollments: number; totalLessons: number };
+}
+
+export async function fetchCourseStudio(uid: string): Promise<CourseStudio> {
+  return safe(async () => {
+    const sb = supabase as any;
+    const { data: cs } = await sb.from('courses').select('id, title, category, product_type, price_usd, is_free, is_active, duration_mins').eq('teacher_id', uid).order('created_at', { ascending: false });
+    const rows = (cs as any[]) || [];
+    const ids = rows.map((c) => c.id);
+    let enr: any[] = [], lessons: any[] = [];
+    if (ids.length) {
+      const [e, l] = await Promise.all([
+        sb.from('enrollments').select('course_id, status, progress').in('course_id', ids),
+        sb.from('lessons').select('id, course_id, status').in('course_id', ids),
+      ]);
+      enr = (e.data as any[]) || []; lessons = (l.data as any[]) || [];
+    }
+    let totalLessons = 0;
+    const courses: StudioCourse[] = rows.map((c) => {
+      const ce = enr.filter((x) => x.course_id === c.id);
+      const cl = lessons.filter((x) => x.course_id === c.id);
+      const completedStudents = ce.filter((x) => x.status === 'completed' || (Number(x.progress) || 0) >= 100).length;
+      const avgProgress = ce.length ? Math.round(ce.reduce((s, x) => s + (Number(x.progress) || 0), 0) / ce.length) : 0;
+      totalLessons += cl.length;
+      return {
+        id: c.id, title: c.title ?? 'Untitled course', category: c.category ?? null, product_type: c.product_type ?? null,
+        price_usd: c.price_usd ?? null, is_free: !!c.is_free, is_active: c.is_active !== false, duration_mins: c.duration_mins ?? null,
+        enrollments: ce.length, lessonCount: cl.length, completedStudents, avgProgress,
+      };
+    });
+    return {
+      courses,
+      stats: { total: rows.length, active: rows.filter((c) => c.is_active !== false).length, totalEnrollments: enr.length, totalLessons },
+    };
+  }, { courses: [], stats: { total: 0, active: 0, totalEnrollments: 0, totalLessons: 0 } });
+}
+
+export async function setCourseActive(id: string, active: boolean): Promise<boolean> {
+  return safe(async () => { const { error } = await (supabase as any).from('courses').update({ is_active: active }).eq('id', id); return !error; }, false);
+}
+export async function deleteCourse(id: string): Promise<boolean> {
+  return safe(async () => { const { error } = await (supabase as any).from('courses').delete().eq('id', id); return !error; }, false);
+}
