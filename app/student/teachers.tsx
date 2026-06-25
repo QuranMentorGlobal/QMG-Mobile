@@ -1,5 +1,0 @@
-// app/student/teachers.tsx
-import { TeachersScreen } from '@/components/TeachersScreen';
-export default function StudentTeachers() {
-  return <TeachersScreen />;
-}
