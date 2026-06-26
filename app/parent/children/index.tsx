@@ -92,7 +92,7 @@ function AddChildSheet({ open, onClose, onAdded, parentId }: { open: boolean; on
         <View style={styles.sheet}>
           <View style={styles.handle} />
           <Text style={styles.sheetTitle}>Add Child</Text>
-          <Text style={styles.sheetBody}>Link an existing student account by email. Your child must already have a QuranMentor student account.</Text>
+          <Text style={styles.sheetBody}>Link an existing student account by email. Your child must already have a Muddarris student account.</Text>
           <ScrollView keyboardShouldPersistTaps="handled">
             <Field label="Child's account email" value={email} onChangeText={setEmail} placeholder="child@example.com" keyboardType="email-address" />
             {msg ? <Text style={styles.err}>{msg}</Text> : null}

@@ -81,7 +81,7 @@ export default function Signup() {
             end={{ x: 1, y: 1 }}
             style={styles.hero}
           >
-            <Text style={styles.brand}>QuranMentor Global</Text>
+            <Text style={styles.brand}>Muddarris</Text>
             <Text style={styles.heroTitle}>Create your account</Text>
           </LinearGradient>
 

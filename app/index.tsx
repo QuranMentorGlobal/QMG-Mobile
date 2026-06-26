@@ -14,7 +14,7 @@ export default function Index() {
   if (loading) {
     return (
       <View style={{ flex: 1, backgroundColor: C.cream }}>
-        <Loading label="Loading QuranMentor…" />
+        <Loading label="Loading Muddarris…" />
       </View>
     );
   }

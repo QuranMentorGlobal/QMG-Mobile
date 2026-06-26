@@ -55,7 +55,7 @@ export default function Login() {
             end={{ x: 1, y: 1 }}
             style={styles.hero}
           >
-            <Text style={styles.brand}>QuranMentor Global</Text>
+            <Text style={styles.brand}>Muddarris</Text>
             <Text style={styles.heroTitle}>Welcome back</Text>
             <Text style={styles.heroSub}>Sign in to continue your learning journey.</Text>
           </LinearGradient>
@@ -101,7 +101,7 @@ export default function Login() {
             />
 
             <View style={styles.footer}>
-              <Text style={styles.muted}>New to QuranMentor? </Text>
+              <Text style={styles.muted}>New to Muddarris? </Text>
               <Link href="/auth/signup" style={styles.link}>
                 Create an account
               </Link>

@@ -32,7 +32,7 @@ export default function StudentDashboard() {
 
   return (
     <Screen>
-      <WelcomeHero eyebrow="QURANMENTOR GLOBAL" title="Deepen Your Understanding" subtitle="Tajweed, Hifz, Tafseer — learn at your pace." active={2} />
+      <WelcomeHero eyebrow="MUDDARRIS" title="Deepen Your Understanding" subtitle="Tajweed, Hifz, Tafseer — learn at your pace." active={2} />
 
       <StatGrid>
         <StatTile icon="water-outline" value="0 days" label="Learning Streak" tone="cream" />

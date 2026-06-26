@@ -31,7 +31,7 @@ export default function TeacherDashboard() {
 
   return (
     <Screen>
-      <WelcomeHero eyebrow="QURANMENTORGLOBAL" title="Welcome Back, Teacher" subtitle="Your students are waiting for your guidance." />
+      <WelcomeHero eyebrow="MUDDARRIS" title="Welcome Back, Teacher" subtitle="Your students are waiting for your guidance." />
 
       <StatGrid>
         <StatTile icon="people-outline" tone="green" value={d.totalStudents} label="Total Students" />

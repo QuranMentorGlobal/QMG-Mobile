@@ -56,7 +56,7 @@ export function RoleShell({ role, children }: { role: Role; children: React.Reac
           <View style={styles.topRow}>
             <View style={styles.brandRow}>
               <Image source={EMBLEM} style={styles.emblemSm} resizeMode="contain" />
-              <Text style={styles.brandText}>QuranMentor<Text style={{ color: C.gold }}>Global</Text></Text>
+              <Text style={styles.brandText}>Muddarris</Text>
             </View>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
               <Pressable onPress={() => router.push(`/${role}/notifications` as any)} hitSlop={8} style={styles.hamburger}>
@@ -128,7 +128,7 @@ function DrawerMenu({ role, open, onClose }: { role: Role; open: boolean; onClos
             <SafeAreaView edges={['top', 'bottom']} style={{ flex: 1 }}>
               <View style={styles.head}>
                 <Image source={EMBLEM} style={styles.emblemLg} resizeMode="contain" />
-                <Text style={styles.headBrand}>QuranMentor<Text style={{ color: C.gold }}>Global</Text></Text>
+                <Text style={styles.headBrand}>Muddarris</Text>
                 <Pressable onPress={onClose} hitSlop={10} style={styles.close}>
                   <Ionicons name="close" size={20} color={C.textMid} />
                 </Pressable>

@@ -31,7 +31,7 @@ export default function ParentDashboard() {
 
   return (
     <Screen>
-      <WelcomeHero eyebrow="QURANMENTOR GLOBAL" title="A Gift for Life" subtitle="Give your child the Quran — the greatest inheritance." active={0} />
+      <WelcomeHero eyebrow="MUDDARRIS" title="A Gift for Life" subtitle="Give your child the Quran — the greatest inheritance." active={0} />
 
       <StatGrid>
         <StatTile icon="people-outline" value={d.children.length} label="Children Enrolled" tone="green" />
