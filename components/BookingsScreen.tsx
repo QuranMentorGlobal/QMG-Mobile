@@ -7,10 +7,11 @@
 // All money/refund logic goes through lib/bookingActions (centralized cancel API).
 
 import { useCallback, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from 'expo-router';
-import { Screen, StatusBadge, EmptyState, Loading, Avatar } from '@/components/ui';
+import { Screen, StatusBadge, EmptyState, Loading, Avatar, FilterChips } from '@/components/ui';
+import { StatGrid, StatTile } from '@/components/dashboard';
 import { useAuth } from '@/lib/auth';
 import {
   fetchRichBookings,
@@ -122,21 +123,27 @@ export function BookingsScreen({ as }: { as: BookingRole }) {
 
   return (
     <Screen>
+      <Text style={styles.eyebrow}>{as === 'teacher' ? 'TEACHER PORTAL' : 'STUDENT PORTAL'}</Text>
       <Text style={styles.pageTitle}>{as === 'teacher' ? 'Bookings' : 'Your bookings'}</Text>
+      <Text style={styles.sub}>
+        {as === 'teacher'
+          ? 'Manage bookings, assign homework, give feedback and track student attendance.'
+          : 'Track your trials, classes and lessons in one place.'}
+      </Text>
 
-      {/* Status tabs */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tabsRow} contentContainerStyle={{ gap: 8, paddingRight: SPACE.md }}>
-        {TABS.map((t) => {
-          const active = tab === t;
-          return (
-            <Pressable key={t} onPress={() => setTab(t)} style={[styles.tab, active && styles.tabActive]}>
-              <Text style={[styles.tabText, active && styles.tabTextActive]}>
-                {t.charAt(0).toUpperCase() + t.slice(1)} {countFor(t)}
-              </Text>
-            </Pressable>
-          );
-        })}
-      </ScrollView>
+      <StatGrid>
+        <StatTile icon="albums-outline" tone="cream" value={bookings.length} label="Total" />
+        <StatTile icon="time-outline" tone="gold" value={countFor('pending')} label="Pending" />
+        <StatTile icon="checkmark-circle-outline" tone="green" value={countFor('confirmed')} label="Confirmed" />
+        <StatTile icon="ribbon-outline" tone="indigo" value={countFor('completed')} label="Completed" />
+      </StatGrid>
+
+      {/* All filters on one screen — wrapped + centered, never a swipe row */}
+      <FilterChips
+        value={tab}
+        onChange={(k) => setTab(k as TabKey)}
+        options={TABS.map((t) => ({ key: t, label: t.charAt(0).toUpperCase() + t.slice(1), count: countFor(t) }))}
+      />
 
       {filtered.length === 0 ? (
         <EmptyState
@@ -250,7 +257,9 @@ function fmtWhen(date: string | null, time: string | null): string {
 }
 
 const styles = StyleSheet.create({
-  pageTitle: { fontFamily: FONT.displayBold, fontSize: 22, color: C.ink, marginTop: 4, marginBottom: SPACE.md },
+  eyebrow: { fontFamily: FONT.bodyBold, fontSize: 11, color: C.gold, letterSpacing: 1.2, marginTop: SPACE.sm, textAlign: 'center' },
+  pageTitle: { fontFamily: FONT.displayBold, fontSize: 26, color: C.ink, marginTop: 2, textAlign: 'center' },
+  sub: { fontFamily: FONT.body, fontSize: 14, color: C.muted, marginTop: 4, marginBottom: SPACE.md, textAlign: 'center' },
   tabsRow: { marginBottom: SPACE.md, flexGrow: 0 },
   tab: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: RADIUS.pill, backgroundColor: C.cream, borderWidth: 1, borderColor: C.borderSoft },
   tabActive: { backgroundColor: C.forest, borderColor: C.forest },

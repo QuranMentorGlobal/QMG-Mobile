@@ -224,20 +224,22 @@ async function writeDetails(courseId: string, f: CourseInput, isEdit: boolean) {
       { course_id: courseId, total_duration_mins: f.lessons.reduce((s, l) => s + (Number(l.duration) || 0), 0), downloads_enabled: f.downloadsEnabled },
       { onConflict: 'course_id' }
     ).select('id').single();
-    const valid = f.lessons.filter((l) => l.title.trim());
-    // Replace lesson rows so edits stay consistent.
-    await sb.from('course_lessons').delete().eq('course_id', courseId);
-    if (valid.length) {
-      await sb.from('course_lessons').insert(
-        valid.map((l, i) => ({
-          course_id: courseId,
-          recorded_course_id: det?.id || null,
-          title: l.title.trim(),
-          video_url: l.video_url.trim() || null,
-          duration_mins: Number(l.duration) || 0,
-          sort_order: i + 1,
-        }))
-      );
+    // Lessons are only written on create. On edit we leave course_lessons alone —
+    // they are managed on the Videos/Recordings screen (matches the web editor).
+    if (!isEdit) {
+      const valid = f.lessons.filter((l) => l.title.trim());
+      if (valid.length) {
+        await sb.from('course_lessons').insert(
+          valid.map((l, i) => ({
+            course_id: courseId,
+            recorded_course_id: det?.id || null,
+            title: l.title.trim(),
+            video_url: l.video_url.trim() || null,
+            duration_mins: Number(l.duration) || 0,
+            sort_order: i + 1,
+          }))
+        );
+      }
     }
   }
 }
@@ -256,7 +258,8 @@ export async function createCourse(uid: string, f: CourseInput): Promise<{ ok: b
 export async function updateCourse(uid: string, id: string, f: CourseInput): Promise<{ ok: boolean; error?: string }> {
   try {
     const base = buildBase(uid, f);
-    delete (base as any).status; // don't flip a completed course back to published on edit
+    delete (base as any).status;     // don't flip a completed course back to published on edit
+    delete (base as any).is_active;  // active/inactive is managed from the overview toggle, not edit
     const { error } = await (supabase as any).from('courses').update(base).eq('id', id);
     if (error) throw new Error(error.message);
     await writeDetails(id, f, true);

@@ -241,11 +241,11 @@ function StepDetails({ f, set }: { f: CourseInput; set: (p: Partial<CourseInput>
   }
   return (
     <View style={{ gap: SPACE.md }}>
-      <Field label="COURSE TITLE *" value={f.title} onChangeText={(t) => set({ title: t })} placeholder="e.g. Complete Tajweed Mastery Program" />
+      <Field label="COURSE TITLE *" value={f.title} onChangeText={(t: string) => set({ title: t })} placeholder="e.g. Complete Tajweed Mastery Program" />
       <Pills label="CATEGORY" options={CATEGORIES} value={f.category} onChange={(v) => set({ category: v })} />
       <Pills label="LEVEL" options={LEVELS} value={f.level} onChange={(v) => set({ level: v })} />
-      <Field label="DESCRIPTION" value={f.description} onChangeText={(t) => set({ description: t })} placeholder="What will students learn?" multiline />
-      <Field label="THUMBNAIL URL (OPTIONAL)" value={f.thumbnailUrl} onChangeText={(t) => set({ thumbnailUrl: t })} placeholder="https://…" autoCapitalize="none" />
+      <Field label="DESCRIPTION" value={f.description} onChangeText={(t: string) => set({ description: t })} placeholder="What will students learn?" multiline />
+      <Field label="THUMBNAIL URL (OPTIONAL)" value={f.thumbnailUrl} onChangeText={(t: string) => set({ thumbnailUrl: t })} placeholder="https://…" autoCapitalize="none" />
 
       {f.productType === 'trial' && (
         <Pressable onPress={() => set({ isAssessment: !f.isAssessment })} style={styles.checkboxRow}>
@@ -258,8 +258,8 @@ function StepDetails({ f, set }: { f: CourseInput; set: (p: Partial<CourseInput>
         <>
           <Num label="SESSION LENGTH (MINUTES)" value={f.liveDuration} onChange={(n) => set({ liveDuration: n })} />
           <Num label="CAPACITY (MAX STUDENTS)" value={f.capacity} onChange={(n) => set({ capacity: n })} />
-          <Field label="START DATE (YYYY-MM-DD)" value={f.startDate} onChangeText={(t) => set({ startDate: t })} placeholder="2026-07-01" autoCapitalize="none" />
-          <Field label="END DATE (OPTIONAL)" value={f.endDate} onChangeText={(t) => set({ endDate: t })} placeholder="YYYY-MM-DD" autoCapitalize="none" />
+          <Field label="START DATE (YYYY-MM-DD)" value={f.startDate} onChangeText={(t: string) => set({ startDate: t })} placeholder="2026-07-01" autoCapitalize="none" />
+          <Field label="END DATE (OPTIONAL)" value={f.endDate} onChangeText={(t: string) => set({ endDate: t })} placeholder="YYYY-MM-DD" autoCapitalize="none" />
         </>
       )}
 
@@ -286,10 +286,10 @@ function StepDetails({ f, set }: { f: CourseInput; set: (p: Partial<CourseInput>
                   </Pressable>
                 ) : null}
               </View>
-              <TextInput style={styles.input} value={l.title} onChangeText={(t) => updateLesson(i, { title: t })} placeholder="Lesson title" placeholderTextColor={C.muted} />
+              <TextInput style={styles.input} value={l.title} onChangeText={(t: string) => updateLesson(i, { title: t })} placeholder="Lesson title" placeholderTextColor={C.muted} />
               <View style={{ flexDirection: 'row', gap: SPACE.sm }}>
-                <TextInput style={[styles.input, { flex: 2 }]} value={l.video_url} onChangeText={(t) => updateLesson(i, { video_url: t })} placeholder="Video URL" placeholderTextColor={C.muted} autoCapitalize="none" />
-                <TextInput style={[styles.input, { flex: 1 }]} value={l.duration ? String(l.duration) : ''} onChangeText={(t) => updateLesson(i, { duration: Number(t) || 0 })} placeholder="min" placeholderTextColor={C.muted} keyboardType="numeric" />
+                <TextInput style={[styles.input, { flex: 2 }]} value={l.video_url} onChangeText={(t: string) => updateLesson(i, { video_url: t })} placeholder="Video URL" placeholderTextColor={C.muted} autoCapitalize="none" />
+                <TextInput style={[styles.input, { flex: 1 }]} value={l.duration ? String(l.duration) : ''} onChangeText={(t: string) => updateLesson(i, { duration: Number(t) || 0 })} placeholder="min" placeholderTextColor={C.muted} keyboardType="numeric" />
               </View>
             </View>
           ))}
@@ -316,7 +316,7 @@ function Money({ label, value, onChange }: { label: string; value: number; onCha
       {label ? <Text style={styles.fieldLabel}>{label}</Text> : null}
       <View style={styles.moneyRow}>
         <Text style={styles.moneyPrefix}>$</Text>
-        <TextInput style={[styles.input, { flex: 1, borderWidth: 0 }]} value={value ? String(value) : ''} onChangeText={(t) => onChange(Number(t) || 0)} placeholder="0" placeholderTextColor={C.muted} keyboardType="numeric" />
+        <TextInput style={[styles.input, { flex: 1, borderWidth: 0 }]} value={value ? String(value) : ''} onChangeText={(t: string) => onChange(Number(t) || 0)} placeholder="0" placeholderTextColor={C.muted} keyboardType="numeric" />
       </View>
     </View>
   );
@@ -325,7 +325,7 @@ function Num({ label, value, onChange }: { label: string; value: number; onChang
   return (
     <View>
       <Text style={styles.fieldLabel}>{label}</Text>
-      <TextInput style={styles.input} value={value ? String(value) : ''} onChangeText={(t) => onChange(Number(t) || 0)} placeholder="0" placeholderTextColor={C.muted} keyboardType="numeric" />
+      <TextInput style={styles.input} value={value ? String(value) : ''} onChangeText={(t: string) => onChange(Number(t) || 0)} placeholder="0" placeholderTextColor={C.muted} keyboardType="numeric" />
     </View>
   );
 }

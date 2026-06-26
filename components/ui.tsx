@@ -280,3 +280,51 @@ const segStyles = StyleSheet.create({
   segText: { fontFamily: FONT.bodySemi, fontSize: 13, color: C.muted },
   segTextActive: { color: C.forest },
 });
+
+// ── FilterChips ─────────────────────────────────────────────────────────────────
+// All filters visible at once — wraps to multiple rows, centered, never a
+// horizontal swipe row. Active chip uses the forest→gold gradient. Optional
+// counts render as a soft pill. Used by Bookings, Course Studio, Earnings, etc.
+export function FilterChips({
+  options, value, onChange, align = 'center',
+}: {
+  options: { key: string; label: string; count?: number }[];
+  value: string;
+  onChange: (key: string) => void;
+  align?: 'center' | 'flex-start';
+}) {
+  return (
+    <View style={[fcStyles.wrap, { justifyContent: align }]}>
+      {options.map((o) => {
+        const on = o.key === value;
+        if (on) {
+          return (
+            <Pressable key={o.key} onPress={() => onChange(o.key)}>
+              <LinearGradient colors={['#166534', '#C9A227']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={fcStyles.chip}>
+                <Text style={[fcStyles.txt, { color: C.white }]}>{o.label}</Text>
+                {o.count != null ? <View style={fcStyles.countOn}><Text style={fcStyles.countOnTxt}>{o.count}</Text></View> : null}
+              </LinearGradient>
+            </Pressable>
+          );
+        }
+        return (
+          <Pressable key={o.key} onPress={() => onChange(o.key)} style={[fcStyles.chip, fcStyles.chipOff]}>
+            <Text style={fcStyles.txt}>{o.label}</Text>
+            {o.count != null ? <View style={fcStyles.countOff}><Text style={fcStyles.countOffTxt}>{o.count}</Text></View> : null}
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
+
+const fcStyles = StyleSheet.create({
+  wrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: SPACE.sm, marginBottom: SPACE.sm },
+  chip: { flexDirection: 'row', alignItems: 'center', gap: 7, borderRadius: RADIUS.pill, paddingHorizontal: 14, paddingVertical: 9 },
+  chipOff: { backgroundColor: C.white, borderWidth: 1, borderColor: C.borderSoft },
+  txt: { fontFamily: FONT.bodySemi, fontSize: 13, color: C.ink },
+  countOn: { minWidth: 20, height: 20, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.28)', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 5 },
+  countOnTxt: { fontFamily: FONT.bodyBold, fontSize: 11, color: C.white },
+  countOff: { minWidth: 20, height: 20, borderRadius: 10, backgroundColor: C.cream, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 5 },
+  countOffTxt: { fontFamily: FONT.bodyBold, fontSize: 11, color: C.accent2 },
+});

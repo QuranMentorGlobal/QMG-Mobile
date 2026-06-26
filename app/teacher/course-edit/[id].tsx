@@ -1,8 +1,9 @@
-// app/teacher/course-edit/[id].tsx — edit an existing course via the in-app wizard.
+// app/teacher/course-edit/[id].tsx — edit an existing course (single-page editor,
+// mirrors the web edit page: type & billing locked, core + type details editable).
 import { useLocalSearchParams } from 'expo-router';
-import { CourseWizard } from '@/components/CourseWizard';
+import { CourseEditor } from '@/components/CourseEditor';
 
 export default function CourseEdit() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  return <CourseWizard mode="edit" courseId={id} />;
+  return <CourseEditor courseId={String(id)} />;
 }
