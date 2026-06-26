@@ -82,30 +82,41 @@ const SLIDES: Record<BannerRole, Slide[]> = {
 export function BannerSlider({ role }: { role: BannerRole }) {
   const list = SLIDES[role] ?? SLIDES.student;
   const [current, setCurrent] = useState(0);
+  const [imgError, setImgError] = useState(false);
   const timer = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     timer.current = setInterval(() => setCurrent((c) => (c + 1) % list.length), 4500);
     return () => { if (timer.current) clearInterval(timer.current); };
   }, [list.length]);
+  // Reset the error flag whenever the slide changes so each photo gets a fresh try.
+  useEffect(() => { setImgError(false); }, [current]);
 
   const slide = list[current];
+  // Prefer the full web image (identical to the website); fall back to the bundled
+  // photo only if the network image fails to load.
+  const webUrl = `https://muddarris.com/banners/${role}-${current + 1}.png`;
   return (
     <View style={styles.banner}>
       {/* charcoal -> forest -> gold fallback shows if the image is slow/unavailable */}
       <LinearGradient colors={G.signature} locations={G.signatureLocations} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
-      <Image source={slide.img} style={StyleSheet.absoluteFill} resizeMode="cover" />
-      {/* dark-left wash so text stays readable, image visible on the right */}
+      <Image
+        source={imgError ? slide.img : { uri: webUrl }}
+        style={StyleSheet.absoluteFill}
+        resizeMode="cover"
+        onError={() => setImgError(true)}
+      />
+      {/* lighter left wash — keeps text readable while letting the photo show through */}
       <LinearGradient
-        colors={['rgba(17,17,17,0.82)', 'rgba(17,17,17,0.45)', 'rgba(17,17,17,0.06)']}
-        locations={[0, 0.45, 1]}
+        colors={['rgba(17,17,17,0.62)', 'rgba(17,17,17,0.28)', 'rgba(17,17,17,0.02)']}
+        locations={[0, 0.5, 1]}
         start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
         style={StyleSheet.absoluteFill}
       />
       <View style={styles.bannerText}>
         <Text style={styles.bannerEyebrow}>MUDDARRIS</Text>
         <Text style={styles.bannerHeadline}>{slide.headline}</Text>
-        <Text style={styles.bannerSub}>{slide.sub}</Text>
+        <Text style={styles.bannerSub} numberOfLines={2}>{slide.sub}</Text>
       </View>
       <View style={styles.bannerDots}>
         {list.map((_, i) => (
@@ -307,9 +318,9 @@ export function Initials({ name, size = 44 }: { name: string; size?: number }) {
 const styles = StyleSheet.create({
   banner: { height: 184, borderRadius: RADIUS.xl, overflow: 'hidden', marginBottom: SPACE.lg, ...SHADOW.lg },
   bannerText: { position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, justifyContent: 'center', alignItems: 'flex-start', paddingHorizontal: SPACE.lg },
-  bannerEyebrow: { color: '#E3C04A', fontFamily: FONT.bodySemi, fontSize: 11, letterSpacing: 1.4, marginBottom: 4, textAlign: 'left' },
-  bannerHeadline: { color: '#FFFFFF', fontFamily: FONT.displayBold, fontSize: 24, lineHeight: 28, textAlign: 'left' },
-  bannerSub: { color: 'rgba(255,255,255,0.85)', fontFamily: FONT.body, fontSize: 13, marginTop: 6, maxWidth: '78%', textAlign: 'left' },
+  bannerEyebrow: { color: '#E3C04A', fontFamily: FONT.bodySemi, fontSize: 10, letterSpacing: 1.3, marginBottom: 3, textAlign: 'left' },
+  bannerHeadline: { color: '#FFFFFF', fontFamily: FONT.displayBold, fontSize: 19, lineHeight: 23, textAlign: 'left' },
+  bannerSub: { color: 'rgba(255,255,255,0.85)', fontFamily: FONT.body, fontSize: 12, marginTop: 4, maxWidth: '72%', textAlign: 'left' },
   bannerDots: { position: 'absolute', bottom: 14, right: 16, flexDirection: 'row', gap: 6 },
   bannerDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: 'rgba(255,255,255,0.4)' },
   bannerDotActive: { width: 22, backgroundColor: '#E3C04A' },
