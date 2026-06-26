@@ -4,7 +4,7 @@ import { Image, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Screen, Loading } from '@/components/ui';
 import {
-  WelcomeHero, StatGrid, StatTile, BadgeStrip, Panel, PanelHeader, BarsChart, LevelRow,
+  BannerSlider, StatGrid, StatTile, BadgeStrip, Panel, PanelHeader, BarsChart, LevelRow,
   SectionHeader, QuickActionGrid, QuickAction, GoalRow, EmptyCard, QuoteCard, Initials,
 } from '@/components/dashboard';
 import { useAuth } from '@/lib/auth';
@@ -32,7 +32,7 @@ export default function StudentDashboard() {
 
   return (
     <Screen>
-      <WelcomeHero eyebrow="MUDDARRIS" title="Deepen Your Understanding" subtitle="Tajweed, Hifz, Tafseer — learn at your pace." active={2} />
+      <BannerSlider role="student" />
 
       <StatGrid>
         <StatTile icon="water-outline" value="0 days" label="Learning Streak" tone="cream" />

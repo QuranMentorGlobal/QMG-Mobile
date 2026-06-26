@@ -5,7 +5,7 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Screen, Loading } from '@/components/ui';
 import {
-  WelcomeHero, StatGrid, StatTile, Panel, PanelHeader, BarsChart, RadialMini,
+  BannerSlider, StatGrid, StatTile, Panel, PanelHeader, BarsChart, RadialMini,
   SectionHeader, QuickActionGrid, QuickAction, EmptyCard, QuoteCard, BadgeStrip, Initials,
 } from '@/components/dashboard';
 import { useAuth } from '@/lib/auth';
@@ -31,7 +31,7 @@ export default function ParentDashboard() {
 
   return (
     <Screen>
-      <WelcomeHero eyebrow="MUDDARRIS" title="A Gift for Life" subtitle="Give your child the Quran — the greatest inheritance." active={0} />
+      <BannerSlider role="parent" />
 
       <StatGrid>
         <StatTile icon="people-outline" value={d.children.length} label="Children Enrolled" tone="green" />

@@ -5,7 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Screen, Loading } from '@/components/ui';
 import {
-  WelcomeHero, StatGrid, StatTile, Panel, PanelHeader, BarsChart,
+  BannerSlider, StatGrid, StatTile, Panel, PanelHeader, BarsChart,
   SectionHeader, QuickActionGrid, QuickAction, EmptyCard, QuoteCard, BadgeStrip, RadialMini,
 } from '@/components/dashboard';
 import { useAuth } from '@/lib/auth';
@@ -31,7 +31,7 @@ export default function TeacherDashboard() {
 
   return (
     <Screen>
-      <WelcomeHero eyebrow="MUDDARRIS" title="Welcome Back, Teacher" subtitle="Your students are waiting for your guidance." />
+      <BannerSlider role="teacher" />
 
       <StatGrid>
         <StatTile icon="people-outline" tone="green" value={d.totalStudents} label="Total Students" />
