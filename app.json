@@ -55,7 +55,8 @@
         {
           "microphonePermission": "Muddarris needs microphone access so you can record voice notes."
         }
-      ]
+      ],
+      "./plugins/withBuildFixes"
     ],
     "experiments": {
       "typedRoutes": true
