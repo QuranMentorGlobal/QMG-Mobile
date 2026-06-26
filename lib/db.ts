@@ -637,7 +637,7 @@ export async function addChildByEmail(parentId: string, email: string): Promise<
 
 // ── Booking workflow (Teachers · Detail · Booking · Checkout) ────────────────
 
-export const API_BASE = 'https://www.muddarris.com';
+export const API_BASE = 'https://muddarris.com';
 
 export interface TeacherDetail {
   id: string; name: string; firstName: string; avatar_url: string | null; country: string | null;

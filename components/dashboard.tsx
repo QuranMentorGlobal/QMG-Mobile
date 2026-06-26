@@ -62,7 +62,7 @@ interface Slide { uri: string; headline: string; sub: string }
 // immediately with zero extra steps. To bundle them locally instead, drop the
 // PNGs in assets/banners/ and swap `uri:` for `require('@/assets/banners/...')`
 // plus use <Image source={slide.img}> (require) instead of {{ uri }}.
-const BANNER_BASE = 'https://www.muddarris.com/banners';
+const BANNER_BASE = 'https://muddarris.com/banners';
 const SLIDES: Record<BannerRole, Slide[]> = {
   teacher: [
     { uri: `${BANNER_BASE}/teacher-1.png`, headline: 'Welcome Back, Teacher', sub: 'Your students are waiting for your guidance.' },
@@ -308,10 +308,10 @@ export function Initials({ name, size = 44 }: { name: string; size?: number }) {
 
 const styles = StyleSheet.create({
   banner: { height: 184, borderRadius: RADIUS.xl, overflow: 'hidden', marginBottom: SPACE.lg, ...SHADOW.lg },
-  bannerText: { position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, justifyContent: 'center', paddingHorizontal: SPACE.lg },
-  bannerEyebrow: { color: '#E3C04A', fontFamily: FONT.bodySemi, fontSize: 11, letterSpacing: 1.4, marginBottom: 4 },
-  bannerHeadline: { color: '#FFFFFF', fontFamily: FONT.displayBold, fontSize: 24, lineHeight: 28 },
-  bannerSub: { color: 'rgba(255,255,255,0.85)', fontFamily: FONT.body, fontSize: 13, marginTop: 6, maxWidth: '78%' },
+  bannerText: { position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, justifyContent: 'center', alignItems: 'flex-start', paddingHorizontal: SPACE.lg },
+  bannerEyebrow: { color: '#E3C04A', fontFamily: FONT.bodySemi, fontSize: 11, letterSpacing: 1.4, marginBottom: 4, textAlign: 'left' },
+  bannerHeadline: { color: '#FFFFFF', fontFamily: FONT.displayBold, fontSize: 24, lineHeight: 28, textAlign: 'left' },
+  bannerSub: { color: 'rgba(255,255,255,0.85)', fontFamily: FONT.body, fontSize: 13, marginTop: 6, maxWidth: '78%', textAlign: 'left' },
   bannerDots: { position: 'absolute', bottom: 14, right: 16, flexDirection: 'row', gap: 6 },
   bannerDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: 'rgba(255,255,255,0.4)' },
   bannerDotActive: { width: 22, backgroundColor: '#E3C04A' },
