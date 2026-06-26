@@ -15,6 +15,7 @@ import {
   type ViewStyle,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { C, FONT, G, RADIUS, SHADOW, SPACE, STATUS_COLORS } from '@/lib/theme';
 
@@ -327,4 +328,42 @@ const fcStyles = StyleSheet.create({
   countOnTxt: { fontFamily: FONT.bodyBold, fontSize: 11, color: C.white },
   countOff: { minWidth: 20, height: 20, borderRadius: 10, backgroundColor: C.cream, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 5 },
   countOffTxt: { fontFamily: FONT.bodyBold, fontSize: 11, color: C.accent2 },
+});
+
+/* ── TabGrid ──────────────────────────────────────────────────────────────────
+   The billing-style segmented tabs: a soft cream container holding tabs in a
+   centered 2-per-row grid; the active tab is a white card with gold icon+label
+   and a soft shadow; an odd final tab spans the full width. Shared by Billing
+   and teacher Earnings so the sub-tab style never drifts. */
+export function TabGrid({
+  options, value, onChange,
+}: {
+  options: { key: string; label: string; icon: keyof typeof Ionicons.glyphMap }[];
+  value: string;
+  onChange: (key: string) => void;
+}) {
+  const lastFull = options.length % 2 === 1;
+  return (
+    <View style={tg.wrap}>
+      {options.map((o, i) => {
+        const on = value === o.key;
+        const full = lastFull && i === options.length - 1;
+        return (
+          <Pressable key={o.key} onPress={() => onChange(o.key)} style={[tg.tab, full && tg.tabFull, on && tg.tabOn]}>
+            <Ionicons name={o.icon} size={15} color={on ? C.gold : C.muted} />
+            <Text style={[tg.label, on && tg.labelOn]} numberOfLines={1}>{o.label}</Text>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
+
+const tg = StyleSheet.create({
+  wrap: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 6, backgroundColor: 'rgba(201,162,39,0.06)', borderRadius: RADIUS.lg, padding: 6, marginBottom: SPACE.md },
+  tab: { width: '48%', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, paddingVertical: 11, paddingHorizontal: 8, borderRadius: RADIUS.md },
+  tabFull: { width: '100%' },
+  tabOn: { backgroundColor: C.white, ...SHADOW.card },
+  label: { fontFamily: FONT.bodySemi, fontSize: 14, color: C.muted },
+  labelOn: { color: C.gold, fontFamily: FONT.bodyBold },
 });

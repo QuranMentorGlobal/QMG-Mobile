@@ -10,7 +10,7 @@ import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { Screen, Loading, FilterChips } from '@/components/ui';
+import { Screen, Loading, FilterChips, TabGrid } from '@/components/ui';
 import { Panel, PanelHeader, BarsChart, EmptyCard } from '@/components/dashboard';
 import { useAuth } from '@/lib/auth';
 import {
@@ -24,8 +24,10 @@ const money = (n: number) => `$${(n ?? 0).toFixed(2)}`;
 const fmtDate = (s: string) => new Date(s).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 
 type SubTab = 'overview' | 'earnings' | 'payouts';
-const SUBTABS: { key: SubTab; label: string }[] = [
-  { key: 'overview', label: 'Overview' }, { key: 'earnings', label: 'Earnings' }, { key: 'payouts', label: 'Payouts' },
+const SUBTABS = [
+  { key: 'overview', label: 'Overview', icon: 'grid-outline' as const },
+  { key: 'earnings', label: 'Earnings', icon: 'cash-outline' as const },
+  { key: 'payouts', label: 'Payouts', icon: 'wallet-outline' as const },
 ];
 
 export default function TeacherEarnings() {
@@ -51,7 +53,7 @@ export default function TeacherEarnings() {
       <Text style={styles.sub}>Your complete earnings, commission breakdown and payout history.</Text>
 
       <FilterChips value={range} onChange={(k) => setRange(k as DateOpt)} options={DATE_OPTS.map((d) => ({ key: d.key, label: d.label }))} />
-      <FilterChips value={tab} onChange={(k) => setTab(k as SubTab)} options={SUBTABS} />
+      <TabGrid value={tab} onChange={(k) => setTab(k as SubTab)} options={SUBTABS} />
 
       {loading || !data ? (
         <View style={{ paddingVertical: SPACE.section }}><Loading label="Loading earnings…" /></View>
