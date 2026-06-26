@@ -409,6 +409,47 @@ export async function sendMessage(convId: string, uid: string, body: string): Pr
   }, false);
 }
 
+// The other participant of a conversation (for the chat header + incoming avatars).
+export interface ConvPeer { name: string; role: string; avatar: string | null }
+export async function fetchConversationPeer(convId: string, uid: string): Promise<ConvPeer> {
+  return safe(async () => {
+    const { data: c } = await (supabase as any).from('conversations').select('participant_1, participant_2').eq('id', convId).single();
+    if (!c) return { name: 'Conversation', role: '', avatar: null };
+    const oid = c.participant_1 === uid ? c.participant_2 : c.participant_1;
+    const { data: p } = await (supabase as any).from('profiles').select('first_name, last_name, role, avatar_url').eq('id', oid).single();
+    return { name: [p?.first_name, p?.last_name].filter(Boolean).join(' ') || 'User', role: p?.role ?? '', avatar: p?.avatar_url ?? null };
+  }, { name: 'Conversation', role: '', avatar: null });
+}
+
+// People the user can start a chat with — derived from shared bookings
+// (teacher ↔ students). Used by the "New Chat" picker.
+export interface MessageContact { id: string; name: string; role: string; avatar: string | null }
+export async function fetchMessageContacts(uid: string): Promise<MessageContact[]> {
+  return safe(async () => {
+    const { data } = await (supabase as any).from('bookings').select('teacher_id, student_id').or(`teacher_id.eq.${uid},student_id.eq.${uid}`);
+    const rows = (data as any[]) ?? [];
+    const ids = new Set<string>();
+    rows.forEach((b) => { const o = b.teacher_id === uid ? b.student_id : b.teacher_id; if (o && o !== uid) ids.add(o); });
+    if (!ids.size) return [];
+    const { data: profs } = await (supabase as any).from('profiles').select('id, first_name, last_name, role, avatar_url').in('id', Array.from(ids));
+    return (profs ?? []).map((p: any) => ({ id: p.id, name: [p.first_name, p.last_name].filter(Boolean).join(' ') || 'User', role: p.role ?? '', avatar: p.avatar_url ?? null }));
+  }, []);
+}
+
+// Find an existing 1:1 conversation or create one. Returns the conversation id.
+export async function getOrCreateConversation(uid: string, otherId: string): Promise<string | null> {
+  return safe(async () => {
+    const { data: existing } = await (supabase as any).from('conversations')
+      .select('id')
+      .or(`and(participant_1.eq.${uid},participant_2.eq.${otherId}),and(participant_1.eq.${otherId},participant_2.eq.${uid})`)
+      .limit(1);
+    if (existing && existing.length) return existing[0].id;
+    const { data: created, error } = await (supabase as any).from('conversations').insert({ participant_1: uid, participant_2: otherId }).select('id').single();
+    if (error) return null;
+    return created.id;
+  }, null);
+}
+
 export interface Ticket { id: string; subject: string; category: string; message: string; status: string; priority: string; created_at: string; }
 
 export async function fetchTickets(uid: string): Promise<Ticket[]> {

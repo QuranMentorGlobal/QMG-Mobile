@@ -168,10 +168,10 @@ function DrawerMenu({ role, open, onClose }: { role: Role; open: boolean; onClos
 
 const styles = StyleSheet.create({
   topRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: SPACE.md, paddingTop: 8 },
-  sideSpacer: { width: 88 },
+  sideSpacer: { width: 92 },
   brandCenter: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10 },
-  rightControls: { width: 88, flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 8 },
-  emblemSm: { width: 34, height: 34 },
+  rightControls: { width: 92, flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 8 },
+  emblemSm: { width: 46, height: 46 },
   brandText: { color: C.white, fontFamily: FONT.displayBold, fontSize: 21 },
   hamburger: { width: 40, height: 40, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.12)', alignItems: 'center', justifyContent: 'center' },
   bellBadge: { position: 'absolute', top: 4, right: 4, minWidth: 16, height: 16, borderRadius: 8, backgroundColor: C.gold, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 3 },
