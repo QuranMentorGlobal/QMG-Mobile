@@ -23,6 +23,7 @@ const teacherNav: NavItem[] = [
   { label: 'Lessons', route: '/teacher/lessons', icon: 'book-outline' },
   { label: 'Bookings', route: '/teacher/bookings', icon: 'calendar-outline' },
   { label: 'Students', route: '/teacher/students', icon: 'people-outline' },
+  { label: 'Attendance', route: '/teacher/attendance', icon: 'checkmark-done-outline' },
   { label: 'Earnings', route: '/teacher/earnings', icon: 'cash-outline' },
   { label: 'Analytics', route: '/teacher/analytics', icon: 'bar-chart-outline' },
   { label: 'Messages', route: '/teacher/messages', icon: 'chatbubbles-outline' },

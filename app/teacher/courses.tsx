@@ -180,7 +180,7 @@ export default function TeacherCourses() {
           <CourseCard
             key={c.id} c={c} busy={busy === c.id} closed={isClosed(c)}
             onEdit={() => router.push(`/teacher/course-edit/${c.id}` as any)}
-            onVideos={() => Linking.openURL(`${WEB}/${c.id}/recordings`)}
+            onVideos={() => router.push(`/teacher/course-recordings/${c.id}` as any)}
             onToggle={() => toggle(c)} onDelete={() => confirmDelete(c)} onComplete={() => confirmComplete(c)}
           />
         ))

@@ -16,6 +16,7 @@ import {
   CATEGORIES, LEVELS, fetchCourseForEdit, updateCourse,
   type ProductType, type BillingModel, type CourseInput,
 } from '@/lib/coursesActions';
+import { MediaPickerButton } from '@/components/MediaPickerButton';
 import { C, FONT, RADIUS, SPACE } from '@/lib/theme';
 
 const PRODUCT_LABEL: Record<string, string> = {
@@ -107,7 +108,8 @@ export function CourseEditor({ courseId }: { courseId: string }) {
         <Pills label="CATEGORY" options={CATEGORIES} value={f.category} onChange={(v) => set({ category: v })} />
         <Pills label="LEVEL" options={LEVELS} value={f.level} onChange={(v) => set({ level: v })} />
         <Field label="DESCRIPTION" value={f.description} onChangeText={(t: string) => set({ description: t })} placeholder="What will students learn?" multiline />
-        <Field label="THUMBNAIL URL (OPTIONAL)" value={f.thumbnailUrl} onChangeText={(t: string) => set({ thumbnailUrl: t })} placeholder="https://…" autoCapitalize="none" />
+        <Field label="THUMBNAIL URL (OPTIONAL)" value={f.thumbnailUrl} onChangeText={(t: string) => set({ thumbnailUrl: t })} placeholder="https://… or upload below" autoCapitalize="none" />
+        <MediaPickerButton kind="image" label="Upload thumbnail" onPicked={(url) => set({ thumbnailUrl: url })} />
 
         {/* Pricing — live uses a monthly rate; others Free/Paid */}
         {pt === 'live' ? (

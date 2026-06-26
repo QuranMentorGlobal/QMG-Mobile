@@ -17,6 +17,7 @@ import {
   computePlans, createCourse, updateCourse, fetchCourseForEdit,
   type ProductType, type BillingModel, type LessonsPerMo, type CourseInput, type LessonInput,
 } from '@/lib/coursesActions';
+import { MediaPickerButton } from '@/components/MediaPickerButton';
 import { C, FONT, RADIUS, SPACE } from '@/lib/theme';
 
 const DEFAULTS: CourseInput = {
@@ -245,7 +246,9 @@ function StepDetails({ f, set }: { f: CourseInput; set: (p: Partial<CourseInput>
       <Pills label="CATEGORY" options={CATEGORIES} value={f.category} onChange={(v) => set({ category: v })} />
       <Pills label="LEVEL" options={LEVELS} value={f.level} onChange={(v) => set({ level: v })} />
       <Field label="DESCRIPTION" value={f.description} onChangeText={(t: string) => set({ description: t })} placeholder="What will students learn?" multiline />
-      <Field label="THUMBNAIL URL (OPTIONAL)" value={f.thumbnailUrl} onChangeText={(t: string) => set({ thumbnailUrl: t })} placeholder="https://…" autoCapitalize="none" />
+      <Field label="THUMBNAIL URL (OPTIONAL)" value={f.thumbnailUrl} onChangeText={(t: string) => set({ thumbnailUrl: t })} placeholder="https://… or upload below" autoCapitalize="none" />
+      <MediaPickerButton kind="image" label="Upload thumbnail" onPicked={(url) => set({ thumbnailUrl: url })} />
+      {f.thumbnailUrl ? <Text style={styles.uploadedHint}>✓ Thumbnail set</Text> : null}
 
       {f.productType === 'trial' && (
         <Pressable onPress={() => set({ isAssessment: !f.isAssessment })} style={styles.checkboxRow}>
@@ -289,11 +292,12 @@ function StepDetails({ f, set }: { f: CourseInput; set: (p: Partial<CourseInput>
               <TextInput style={styles.input} value={l.title} onChangeText={(t: string) => updateLesson(i, { title: t })} placeholder="Lesson title" placeholderTextColor={C.muted} />
               <View style={{ flexDirection: 'row', gap: SPACE.sm }}>
                 <TextInput style={[styles.input, { flex: 2 }]} value={l.video_url} onChangeText={(t: string) => updateLesson(i, { video_url: t })} placeholder="Video URL" placeholderTextColor={C.muted} autoCapitalize="none" />
+                <MediaPickerButton kind="video" compact onPicked={(url) => updateLesson(i, { video_url: url })} />
                 <TextInput style={[styles.input, { flex: 1 }]} value={l.duration ? String(l.duration) : ''} onChangeText={(t: string) => updateLesson(i, { duration: Number(t) || 0 })} placeholder="min" placeholderTextColor={C.muted} keyboardType="numeric" />
               </View>
             </View>
           ))}
-          <Text style={styles.hint}>Tip: in-app video upload arrives in the next app update — paste a video URL for now.</Text>
+          <Text style={styles.hint}>Tip: paste a YouTube/Vimeo/MP4 link, or tap upload to add a video from your device.</Text>
         </>
       )}
     </View>
@@ -369,6 +373,7 @@ function cap(s: string) { return s.charAt(0).toUpperCase() + s.slice(1); }
 function defaultBilling(t: ProductType): BillingModel { return BILLING_OPTIONS[t][0].key; }
 
 const styles = StyleSheet.create({
+  uploadedHint: { fontFamily: FONT.bodySemi, fontSize: 12, color: C.forest, marginTop: -SPACE.sm, marginBottom: SPACE.md },
   back: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4, marginBottom: SPACE.sm },
   backText: { fontFamily: FONT.bodySemi, fontSize: 15, color: C.muted },
   stepLabel: { fontFamily: FONT.bodyBold, fontSize: 12, color: C.gold, letterSpacing: 1 },

@@ -7,7 +7,7 @@
 // web settings page for now (native payout flow is a later batch).
 import { useCallback, useState } from 'react';
 import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { Screen, Loading, FilterChips } from '@/components/ui';
@@ -30,6 +30,7 @@ const SUBTABS: { key: SubTab; label: string }[] = [
 
 export default function TeacherEarnings() {
   const { session } = useAuth();
+  const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<EarningsData | null>(null);
   const [range, setRange] = useState<DateOpt>('all');
@@ -157,6 +158,7 @@ function EarningsList({ data }: { data: EarningsData }) {
 /* ── Payouts ──────────────────────────────────────────────────────────────── */
 function Payouts({ data }: { data: EarningsData }) {
   const s = data.summary;
+  const router = useRouter();
   return (
     <View style={{ marginTop: SPACE.sm }}>
       <LinearGradient colors={['#0F3D27', '#166534', '#C9A227']} locations={[0, 0.55, 1]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.balanceCard}>
@@ -165,7 +167,7 @@ function Payouts({ data }: { data: EarningsData }) {
         <Text style={styles.balMeta}>Pending earnings: {money(s.pendingAmount)} · Pending withdrawals: {money(s.pendingWithdrawals)}</Text>
         <Text style={styles.balPaidLbl}>Total paid out</Text>
         <Text style={styles.balPaid}>{money(s.paidAmount)}</Text>
-        <Pressable onPress={() => Linking.openURL(PAYOUT_SETTINGS_URL)} style={styles.setupBtn}>
+        <Pressable onPress={() => router.push('/teacher/payout-settings' as any)} style={styles.setupBtn}>
           <Text style={styles.setupText}>{data.hasPayoutSettings ? 'Manage payout method →' : 'Set up payout method →'}</Text>
         </Pressable>
       </LinearGradient>
