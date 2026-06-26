@@ -3,6 +3,12 @@
 // and exposes signIn / signUp / signOut. Mirrors the web app's auth + role model
 // (profiles.role in student|teacher|parent|admin; signup upserts a profiles row and,
 // for teachers, a teacher_profiles row — defeating any default-student DB trigger).
+//
+// HARDENED: initial session resolution can never hang the app on the loading screen.
+// getSession() is raced against a timeout, the profile fetch is non-blocking, and
+// setLoading(false) is guaranteed to run via finally. A stale/corrupt stored session
+// or an unreachable backend now degrades to the login screen instead of an infinite
+// "Loading QuranMentor…" spinner.
 
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import type { Session } from '@supabase/supabase-js';
@@ -40,13 +46,47 @@ interface AuthValue {
 
 const AuthContext = createContext<AuthValue | undefined>(undefined);
 
+// Resolve a promise, but never wait longer than `ms`. On timeout, resolve with
+// `fallback` so a hung network call can't freeze app startup.
+function withTimeout<T>(promise: Promise<T>, ms: number, fallback: T): Promise<T> {
+  return new Promise<T>((resolve) => {
+    let settled = false;
+    const timer = setTimeout(() => {
+      if (!settled) {
+        settled = true;
+        resolve(fallback);
+      }
+    }, ms);
+    promise
+      .then((value) => {
+        if (!settled) {
+          settled = true;
+          clearTimeout(timer);
+          resolve(value);
+        }
+      })
+      .catch(() => {
+        if (!settled) {
+          settled = true;
+          clearTimeout(timer);
+          resolve(fallback);
+        }
+      });
+  });
+}
+
 async function loadProfile(userId: string): Promise<Profile | null> {
-  const { data } = await (supabase as any)
-    .from('profiles')
-    .select('id, first_name, last_name, email, avatar_url, role, country')
-    .eq('id', userId)
-    .single();
-  return (data as Profile) ?? null;
+  try {
+    const { data } = await (supabase as any)
+      .from('profiles')
+      .select('id, first_name, last_name, email, avatar_url, role, country')
+      .eq('id', userId)
+      .single();
+    return (data as Profile) ?? null;
+  } catch {
+    // Network/permission error fetching the profile must not block startup.
+    return null;
+  }
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -58,22 +98,45 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     let active = true;
 
     (async () => {
-      const { data } = await supabase.auth.getSession();
-      if (!active) return;
-      setSession(data.session ?? null);
-      if (data.session?.user) {
-        setProfile(await loadProfile(data.session.user.id));
+      try {
+        // getSession() reads the persisted token from AsyncStorage. Normally fast,
+        // but if it stalls (e.g. storage lock / bad client config) we must not wait
+        // forever — fall back to "no session" after 8s so the user reaches login.
+        const result = await withTimeout(supabase.auth.getSession(), 8000, {
+          data: { session: null },
+        } as Awaited<ReturnType<typeof supabase.auth.getSession>>);
+
+        if (!active) return;
+        const current = result?.data?.session ?? null;
+        setSession(current);
+
+        if (current?.user) {
+          // Non-blocking: even if this is slow/null, loading is released in finally.
+          const p = await withTimeout(loadProfile(current.user.id), 8000, null);
+          if (active) setProfile(p);
+        }
+      } catch {
+        if (active) {
+          setSession(null);
+          setProfile(null);
+        }
+      } finally {
+        // ALWAYS release the loader — this is the line whose absence caused the hang.
+        if (active) setLoading(false);
       }
-      setLoading(false);
     })();
 
     const { data: sub } = supabase.auth.onAuthStateChange(async (_event, newSession) => {
+      if (!active) return;
       setSession(newSession);
       if (newSession?.user) {
-        setProfile(await loadProfile(newSession.user.id));
+        const p = await withTimeout(loadProfile(newSession.user.id), 8000, null);
+        if (active) setProfile(p);
       } else {
         setProfile(null);
       }
+      // Defensive: any auth state change also guarantees we're out of the loader.
+      if (active) setLoading(false);
     });
 
     return () => {
