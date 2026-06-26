@@ -54,11 +54,12 @@ export function RoleShell({ role, children }: { role: Role; children: React.Reac
       <LinearGradient colors={G.dark} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
         <SafeAreaView edges={['top']}>
           <View style={styles.topRow}>
-            <View style={styles.brandRow}>
+            <View style={styles.sideSpacer} />
+            <View style={styles.brandCenter}>
               <Image source={EMBLEM} style={styles.emblemSm} resizeMode="contain" />
               <Text style={styles.brandText}>Muddarris</Text>
             </View>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <View style={styles.rightControls}>
               <Pressable onPress={() => router.push(`/${role}/notifications` as any)} hitSlop={8} style={styles.hamburger}>
                 <Ionicons name="notifications-outline" size={22} color={C.white} />
                 {unread > 0 ? <View style={styles.bellBadge}><Text style={styles.bellBadgeText}>{unread > 9 ? '9+' : unread}</Text></View> : null}
@@ -166,14 +167,16 @@ function DrawerMenu({ role, open, onClose }: { role: Role; open: boolean; onClos
 }
 
 const styles = StyleSheet.create({
-  topRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: SPACE.md, paddingTop: 8 },
-  brandRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  emblemSm: { width: 26, height: 26 },
-  brandText: { color: C.white, fontFamily: FONT.displayBold, fontSize: 17 },
+  topRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: SPACE.md, paddingTop: 8 },
+  sideSpacer: { width: 88 },
+  brandCenter: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10 },
+  rightControls: { width: 88, flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 8 },
+  emblemSm: { width: 34, height: 34 },
+  brandText: { color: C.white, fontFamily: FONT.displayBold, fontSize: 21 },
   hamburger: { width: 40, height: 40, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.12)', alignItems: 'center', justifyContent: 'center' },
   bellBadge: { position: 'absolute', top: 4, right: 4, minWidth: 16, height: 16, borderRadius: 8, backgroundColor: C.gold, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 3 },
   bellBadgeText: { color: C.ink, fontFamily: FONT.bodyBold, fontSize: 9 },
-  greeting: { color: C.goldLight, fontFamily: FONT.bodySemi, fontSize: 13, paddingHorizontal: SPACE.md, paddingBottom: 12, paddingTop: 4 },
+  greeting: { color: C.goldLight, fontFamily: FONT.bodySemi, fontSize: 13, textAlign: 'center', paddingHorizontal: SPACE.md, paddingBottom: 12, paddingTop: 4 },
 
   scrim: { backgroundColor: 'rgba(0,0,0,0.35)' },
   panel: { position: 'absolute', right: 0, top: 0, bottom: 0, borderTopLeftRadius: RADIUS.sheet, borderBottomLeftRadius: RADIUS.sheet, overflow: 'hidden', shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 24, shadowOffset: { width: -8, height: 0 }, elevation: 16 },
