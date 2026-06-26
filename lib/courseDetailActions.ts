@@ -8,6 +8,7 @@ export type CType = 'trial' | 'recorded' | 'live' | 'program';
 export interface CourseDetail {
   course: any; enrollment: any; teacher: any;
   lessons: any[]; resources: any[]; announcements: any[]; booking: any;
+  homework: any[]; assessments: any[]; reports: any[]; certificate: any; studentName: string;
   type: CType; teacherName: string;
   completed: string[]; progressPct: number; isDone: boolean; joinUrl: string | null;
 }
@@ -20,13 +21,19 @@ export async function fetchCourseDetail(courseId: string, uid: string): Promise<
   try {
     const { data: course } = await sb.from('courses').select('*').eq('id', courseId).single();
     if (!course) return null;
-    const [enrRes, teacherRes, lessonsRes, resRes, annRes, bookingRes] = await Promise.all([
+    const { data: prof } = await safe(sb.from('profiles').select('first_name, last_name').eq('id', uid).maybeSingle());
+    const studentName = prof ? `${prof.first_name || ''} ${prof.last_name || ''}`.trim() : '';
+    const [enrRes, teacherRes, lessonsRes, resRes, annRes, bookingRes, hwRes, asmRes, repRes, certRes] = await Promise.all([
       safe(sb.from('enrollments').select('*').eq('student_id', uid).eq('course_id', courseId).maybeSingle()),
       course.teacher_id ? safe(sb.from('profiles').select('id, first_name, last_name, avatar_url, country, bio').eq('id', course.teacher_id).maybeSingle()) : Promise.resolve({ data: null }),
       safe(sb.from('course_lessons').select('*').eq('course_id', courseId).order('sort_order')),
       safe(sb.from('course_resources').select('*').eq('course_id', courseId)),
       safe(sb.from('course_announcements').select('*').eq('course_id', courseId).order('created_at', { ascending: false })),
       safe(sb.from('bookings').select('id, start_date, session_time, student_notes, status, lessons(daily_room_url, scheduled_at)').eq('course_id', courseId).eq('student_id', uid).order('created_at', { ascending: false }).limit(1).maybeSingle()),
+      safe(sb.from('homework').select('*').eq('course_id', courseId).eq('student_id', uid)),
+      safe(sb.from('assessments').select('*').eq('course_id', courseId).eq('student_id', uid)),
+      safe(sb.from('teacher_reports').select('*').eq('course_id', courseId).eq('student_id', uid).order('created_at', { ascending: false })),
+      safe(sb.from('certificates').select('*').eq('course_id', courseId).eq('student_id', uid).maybeSingle()),
     ]);
     const enrollment = enrRes.data;
     const teacher = teacherRes.data;
@@ -41,9 +48,19 @@ export async function fetchCourseDetail(courseId: string, uid: string): Promise<
     return {
       course, enrollment, teacher, lessons,
       resources: (resRes.data as any[]) || [], announcements: (annRes.data as any[]) || [], booking,
+      homework: (hwRes.data as any[]) || [], assessments: (asmRes.data as any[]) || [], reports: (repRes.data as any[]) || [],
+      certificate: certRes.data || null, studentName,
       type, teacherName, completed, progressPct, isDone, joinUrl,
     };
   } catch { return null; }
+}
+
+export async function saveStudentNote(bookingId: string, text: string): Promise<boolean> {
+  try { const { error } = await (supabase as any).from('bookings').update({ student_notes: text }).eq('id', bookingId); return !error; } catch { return false; }
+}
+
+export async function submitHomework(hwId: string, text: string): Promise<boolean> {
+  try { const { error } = await (supabase as any).from('homework').update({ submission_text: text, status: 'submitted', submitted_at: new Date().toISOString() }).eq('id', hwId); return !error; } catch { return false; }
 }
 
 export async function markLessonProgress(enrollmentId: string, lessonId: string, completed: boolean): Promise<boolean> {

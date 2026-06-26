@@ -2,7 +2,7 @@
 // tabs (Overview + Schedule/Lessons/Announcements/Resources/…), About + stats,
 // Your Teacher with Message Teacher, Join links, and lesson progress.
 import { useCallback, useMemo, useState } from 'react';
-import { ActivityIndicator, Image, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Image, Linking, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Stack, useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -11,7 +11,7 @@ import { Loading } from '@/components/ui';
 import { Initials } from '@/components/dashboard';
 import { useAuth } from '@/lib/auth';
 import { getOrCreateConversation } from '@/lib/db';
-import { fetchCourseDetail, markLessonProgress, type CourseDetail, type CType } from '@/lib/courseDetailActions';
+import { fetchCourseDetail, markLessonProgress, saveStudentNote, submitHomework, type CourseDetail, type CType } from '@/lib/courseDetailActions';
 import { C, FONT, G, RADIUS, SHADOW, SPACE } from '@/lib/theme';
 
 const TYPE_LABEL: Record<CType, string> = { trial: 'Trial Class', recorded: 'Recorded Course', live: 'Live Class', program: 'Long Course' };
@@ -21,8 +21,8 @@ function tabsFor(type: CType): { key: string; label: string }[] {
   const resources = { key: 'resources', label: 'Resources' };
   if (type === 'trial') return [overview, { key: 'join', label: 'Join' }, { key: 'notes', label: 'Notes' }, resources];
   if (type === 'live') return [overview, { key: 'schedule', label: 'Schedule' }, { key: 'announcements', label: 'Announcements' }, resources];
-  if (type === 'program') return [overview, { key: 'lessons', label: 'Curriculum' }, { key: 'progress', label: 'Progress' }, { key: 'announcements', label: 'Announcements' }, resources];
-  return [overview, { key: 'lessons', label: 'Lessons' }, { key: 'progress', label: 'Progress' }, resources];
+  if (type === 'program') return [overview, { key: 'lessons', label: 'Curriculum' }, { key: 'homework', label: 'Homework' }, { key: 'assessments', label: 'Assessments' }, { key: 'reports', label: 'Teacher Reports' }, resources];
+  return [overview, { key: 'lessons', label: 'Lessons' }, { key: 'progress', label: 'Progress' }, resources, { key: 'certificate', label: 'Certificate' }];
 }
 const fmtDate = (s: string) => { try { return new Date(s).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }); } catch { return s; } };
 
@@ -36,11 +36,13 @@ export default function StudentCourseDetail() {
   const [tab, setTab] = useState('overview');
   const [busy, setBusy] = useState<string | null>(null);
   const [completed, setCompleted] = useState<string[]>([]);
+  const [note, setNote] = useState('');
+  const [noteSaved, setNoteSaved] = useState(false);
 
   const load = useCallback(async () => {
     if (!id || !uid) return;
     const detail = await fetchCourseDetail(id, uid);
-    setD(detail); setCompleted(detail?.completed ?? []); setLoading(false);
+    setD(detail); setCompleted(detail?.completed ?? []); setNote(detail?.booking?.student_notes ?? ''); setLoading(false);
   }, [id, uid]);
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
@@ -61,6 +63,19 @@ export default function StudentCourseDetail() {
     const ok = await markLessonProgress(d.enrollment.id, lessonId, !isOn);
     setBusy(null);
     if (ok) setCompleted((c) => (isOn ? c.filter((x) => x !== lessonId) : [...c, lessonId]));
+  }
+  async function saveNote() {
+    if (!d?.booking) return;
+    setBusy('note'); setNoteSaved(false);
+    const ok = await saveStudentNote(d.booking.id, note);
+    setBusy(null);
+    if (ok) { setNoteSaved(true); setTimeout(() => setNoteSaved(false), 2500); }
+  }
+  async function submitHw(hwId: string, text: string) {
+    setBusy(hwId);
+    const ok = await submitHomework(hwId, text);
+    setBusy(null);
+    if (ok) load();
   }
 
   if (loading) return <SafeAreaView style={{ flex: 1, backgroundColor: C.cream }}><Stack.Screen options={{ headerShown: false }} /><Loading label="Loading course…" /></SafeAreaView>;
@@ -120,8 +135,16 @@ export default function StudentCourseDetail() {
               <Schedule d={d} />
             ) : tab === 'announcements' ? (
               <Announcements list={d.announcements} />
+            ) : tab === 'homework' ? (
+              <Homework list={d.homework} onSubmit={submitHw} busy={busy} />
+            ) : tab === 'assessments' ? (
+              <Assessments list={d.assessments} />
+            ) : tab === 'reports' ? (
+              <Reports list={d.reports} />
+            ) : tab === 'certificate' ? (
+              <Certificate d={d} pct={progressPct} />
             ) : tab === 'notes' ? (
-              <Notes booking={d.booking} />
+              <Notes value={note} onChange={setNote} onSave={saveNote} saving={busy === 'note'} saved={noteSaved} disabled={!d.booking} />
             ) : tab === 'resources' ? (
               <Resources list={d.resources} />
             ) : null}
@@ -235,12 +258,107 @@ function Announcements({ list }: { list: any[] }) {
   );
 }
 
-function Notes({ booking }: { booking: any }) {
+function Notes({ value, onChange, onSave, saving, saved, disabled }: { value: string; onChange: (t: string) => void; onSave: () => void; saving: boolean; saved: boolean; disabled: boolean }) {
   return (
     <Card>
-      <Text style={styles.h3}>Your Notes to the Teacher</Text>
-      <Text style={[styles.body, { marginTop: 6 }]}>{booking?.student_notes || 'No notes added for this trial.'}</Text>
+      <Text style={styles.h3}>My Notes</Text>
+      <TextInput value={value} onChangeText={onChange} placeholder="Jot down what you want to focus on…" placeholderTextColor={C.faint} multiline style={styles.textArea} editable={!disabled} />
+      {saved ? <Text style={styles.savedNote}>✓ Saved</Text> : null}
+      <Pressable onPress={onSave} disabled={saving || disabled} style={{ marginTop: SPACE.sm, opacity: disabled ? 0.5 : 1 }}>
+        <LinearGradient colors={['#166534', '#C9A227']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.cta}><Text style={styles.ctaText}>{saving ? 'Saving…' : 'Save Notes'}</Text></LinearGradient>
+      </Pressable>
     </Card>
+  );
+}
+
+function Homework({ list, onSubmit, busy }: { list: any[]; onSubmit: (id: string, text: string) => void; busy: string | null }) {
+  if (!list.length) return <EmptyT text="No homework assigned yet." />;
+  return <View>{list.map((h) => <HomeworkItem key={h.id} hw={h} busy={busy === h.id} onSubmit={onSubmit} />)}</View>;
+}
+function HomeworkItem({ hw, busy, onSubmit }: { hw: any; busy: boolean; onSubmit: (id: string, text: string) => void }) {
+  const [text, setText] = useState(hw.submission_text || '');
+  const submitted = hw.status === 'submitted' || hw.status === 'graded';
+  return (
+    <Card>
+      <View style={styles.hwHead}>
+        <Text style={styles.annTitle}>{hw.title}</Text>
+        <View style={[styles.statusPill, { backgroundColor: submitted ? 'rgba(22,163,74,0.12)' : 'rgba(234,88,12,0.1)' }]}><Text style={[styles.statusPillText, { color: submitted ? C.success : C.orange }]}>{(hw.status || 'pending').toUpperCase()}</Text></View>
+      </View>
+      {hw.description ? <Text style={[styles.body, { marginTop: 4 }]}>{hw.description}</Text> : null}
+      {hw.due_at ? <Text style={[styles.muted, { marginTop: 4 }]}>Due {new Date(hw.due_at).toLocaleDateString('en-GB')}</Text> : null}
+      {hw.grade ? <Text style={styles.grade}>Grade: {hw.grade}{hw.feedback ? ` — ${hw.feedback}` : ''}</Text> : null}
+      <TextInput value={text} onChangeText={setText} placeholder="Your submission…" placeholderTextColor={C.faint} multiline style={[styles.textArea, { marginTop: SPACE.sm }]} />
+      <Pressable onPress={() => onSubmit(hw.id, text)} disabled={busy} style={{ marginTop: SPACE.sm }}>
+        <LinearGradient colors={['#166534', '#C9A227']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.cta}><Text style={styles.ctaText}>{busy ? 'Saving…' : submitted ? 'Update Submission' : 'Submit Homework'}</Text></LinearGradient>
+      </Pressable>
+    </Card>
+  );
+}
+
+function Assessments({ list }: { list: any[] }) {
+  if (!list.length) return <EmptyT text="No assessments yet." />;
+  return (
+    <View>{list.map((a) => (
+      <Card key={a.id}>
+        <View style={styles.hwHead}>
+          <View style={{ flex: 1 }}><Text style={styles.annTitle}>{a.title}</Text><Text style={styles.muted}>{(a.assessment_type || 'quiz').toUpperCase()} · {a.status}</Text></View>
+          {a.score != null ? <Text style={styles.score}>{a.score}{a.max_score ? `/${a.max_score}` : ''}</Text> : null}
+        </View>
+        {a.notes ? <Text style={[styles.muted, { marginTop: 6 }]}>{a.notes}</Text> : null}
+      </Card>
+    ))}</View>
+  );
+}
+
+function Reports({ list }: { list: any[] }) {
+  if (!list.length) return <EmptyT text="No teacher reports yet." />;
+  const fmt = (s: string) => { try { return new Date(s).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }); } catch { return s; } };
+  return (
+    <View>{list.map((r) => (
+      <Card key={r.id}>
+        <View style={styles.hwHead}>
+          <Text style={styles.annTitle}>{r.period_start ? fmt(r.period_start) : ''} – {r.period_end ? fmt(r.period_end) : ''}</Text>
+          {r.rating != null ? <Text style={styles.rating}>★ {r.rating}</Text> : null}
+        </View>
+        {r.summary ? <Text style={[styles.body, { marginTop: 4 }]}>{r.summary}</Text> : null}
+        <View style={{ flexDirection: 'row', gap: SPACE.sm, marginTop: SPACE.sm }}>
+          {r.strengths ? <View style={[styles.repBox, { backgroundColor: 'rgba(22,163,74,0.06)' }]}><Text style={[styles.repLabel, { color: C.success }]}>STRENGTHS</Text><Text style={styles.repText}>{r.strengths}</Text></View> : null}
+          {r.areas_to_improve ? <View style={[styles.repBox, { backgroundColor: 'rgba(201,162,39,0.06)' }]}><Text style={[styles.repLabel, { color: C.accent2 }]}>TO IMPROVE</Text><Text style={styles.repText}>{r.areas_to_improve}</Text></View> : null}
+        </View>
+        {(r.attendance_pct != null || r.lessons_total != null) ? <Text style={[styles.muted, { marginTop: SPACE.sm }]}>Attendance {r.attendance_pct ?? '—'}% · {r.lessons_attended ?? '—'}/{r.lessons_total ?? '—'} lessons</Text> : null}
+      </Card>
+    ))}</View>
+  );
+}
+
+function Certificate({ d, pct }: { d: CourseDetail; pct: number }) {
+  if (!d.isDone && pct < 100) return <EmptyT text="Complete all lessons to earn your certificate." />;
+  const cert = d.certificate || {};
+  const issued = cert.issued_at || d.enrollment?.completed_at;
+  const issuedStr = issued ? new Date(issued).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) : '—';
+  const student = cert.student_name || d.studentName || 'Student';
+  const courseName = cert.course_name || d.course.title;
+  const teacher = cert.teacher_name || d.teacherName;
+  return (
+    <LinearGradient colors={['#C9A227', '#166534', '#C9A227']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.certBorder}>
+      <View style={styles.certInner}>
+        <Text style={styles.certBrand}>﷽</Text>
+        <Text style={styles.certEyebrow}>MUDDARRIS · CERTIFICATE OF COMPLETION</Text>
+        <View style={styles.certSeal}><Ionicons name="ribbon" size={30} color={C.gold} /></View>
+        <Text style={styles.certCaption}>This certifies that</Text>
+        <Text style={styles.certName}>{student}</Text>
+        <View style={styles.certRule} />
+        <Text style={styles.certCaption}>has successfully completed</Text>
+        <Text style={styles.certCourse}>{courseName}</Text>
+        {teacher ? <Text style={styles.certCaption}>under the guidance of {teacher}</Text> : null}
+        {cert.certificate_type ? <View style={styles.certTypePill}><Text style={styles.certTypeText}>{String(cert.certificate_type).toUpperCase()}</Text></View> : null}
+        <View style={styles.certMetaRow}>
+          <View style={{ alignItems: 'center' }}><Text style={styles.certMetaLabel}>ISSUED</Text><Text style={styles.certMetaVal}>{issuedStr}</Text></View>
+          {cert.certificate_number ? <View style={{ alignItems: 'center' }}><Text style={styles.certMetaLabel}>CERTIFICATE NO.</Text><Text style={styles.certMetaVal}>{cert.certificate_number}</Text></View> : null}
+        </View>
+        {cert.verify_code ? <Text style={styles.certVerify}>Verify code: {cert.verify_code}</Text> : null}
+      </View>
+    </LinearGradient>
   );
 }
 
@@ -309,4 +427,32 @@ const styles = StyleSheet.create({
   openText: { fontFamily: FONT.bodyBold, fontSize: 13, color: C.forest },
   empty: { alignItems: 'center', paddingVertical: SPACE.section, gap: 8 },
   emptyText: { fontFamily: FONT.body, fontSize: 13, color: C.muted, textAlign: 'center', paddingHorizontal: SPACE.lg },
+
+  textArea: { borderWidth: 1.5, borderColor: C.borderSoft, borderRadius: RADIUS.md, padding: 12, fontFamily: FONT.body, fontSize: 14, color: C.ink, minHeight: 110, textAlignVertical: 'top', backgroundColor: C.white },
+  savedNote: { fontFamily: FONT.bodySemi, fontSize: 12, color: C.forest, marginTop: 8 },
+  hwHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+  statusPill: { borderRadius: RADIUS.pill, paddingHorizontal: 10, paddingVertical: 3 },
+  statusPillText: { fontFamily: FONT.bodyBold, fontSize: 10, letterSpacing: 0.4 },
+  grade: { fontFamily: FONT.bodyBold, fontSize: 12, color: C.success, marginTop: 6 },
+  score: { fontFamily: FONT.displayBold, fontSize: 20, color: C.forest },
+  rating: { fontFamily: FONT.bodyBold, fontSize: 14, color: C.gold },
+  repBox: { flex: 1, borderRadius: RADIUS.md, padding: SPACE.sm },
+  repLabel: { fontFamily: FONT.bodyBold, fontSize: 10, marginBottom: 3, letterSpacing: 0.4 },
+  repText: { fontFamily: FONT.body, fontSize: 12, color: C.text },
+
+  certBorder: { borderRadius: RADIUS.xl, padding: 4, ...SHADOW.lg },
+  certInner: { backgroundColor: '#FCFAF3', borderRadius: RADIUS.lg, paddingVertical: SPACE.section, paddingHorizontal: SPACE.lg, alignItems: 'center' },
+  certBrand: { fontSize: 24, color: C.gold, marginBottom: 4 },
+  certEyebrow: { fontFamily: FONT.bodyBold, fontSize: 10, color: C.accent2, letterSpacing: 1.4, textAlign: 'center' },
+  certSeal: { width: 64, height: 64, borderRadius: 32, borderWidth: 2, borderColor: C.gold, alignItems: 'center', justifyContent: 'center', marginVertical: SPACE.md },
+  certCaption: { fontFamily: FONT.body, fontSize: 12, color: C.muted, marginTop: 6, textAlign: 'center' },
+  certName: { fontFamily: FONT.displayBold, fontSize: 26, color: C.forest, marginTop: 4, textAlign: 'center' },
+  certRule: { width: 160, height: 2, backgroundColor: C.gold, opacity: 0.5, marginTop: 6, marginBottom: 2 },
+  certCourse: { fontFamily: FONT.displayBold, fontSize: 18, color: C.ink, marginTop: 4, textAlign: 'center' },
+  certTypePill: { backgroundColor: C.tintGold, borderRadius: RADIUS.pill, paddingHorizontal: 12, paddingVertical: 4, marginTop: SPACE.md },
+  certTypeText: { fontFamily: FONT.bodyBold, fontSize: 10, color: C.accent2, letterSpacing: 0.6 },
+  certMetaRow: { flexDirection: 'row', gap: SPACE.section, marginTop: SPACE.lg },
+  certMetaLabel: { fontFamily: FONT.bodyBold, fontSize: 9, color: C.faint, letterSpacing: 0.6 },
+  certMetaVal: { fontFamily: FONT.bodySemi, fontSize: 12, color: C.ink, marginTop: 2 },
+  certVerify: { fontFamily: FONT.body, fontSize: 11, color: C.muted, marginTop: SPACE.md },
 });
