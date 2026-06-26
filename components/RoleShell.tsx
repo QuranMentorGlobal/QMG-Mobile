@@ -15,9 +15,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth, homeRouteForRole } from '@/lib/auth';
 import { countUnreadNotifications } from '@/lib/db';
 import type { Role } from '@/lib/supabase';
-import { navSectionsForRole, PORTAL_LABEL } from '@/lib/nav';
+import { navForRole, PORTAL_LABEL } from '@/lib/nav';
 import { Loading } from '@/components/ui';
-import { C, FONT, G, RADIUS, SHADOW, SPACE } from '@/lib/theme';
+import { C, FONT, G, RADIUS, SPACE } from '@/lib/theme';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 const PANEL_W = Math.min(330, SCREEN_W * 0.82);
@@ -82,9 +82,8 @@ export function RoleShell({ role, children }: { role: Role; children: React.Reac
 function DrawerMenu({ role, open, onClose }: { role: Role; open: boolean; onClose: () => void }) {
   const router = useRouter();
   const pathname = usePathname();
-  const { signOut, profile } = useAuth();
-  const sections = navSectionsForRole(role);
-  const name = [profile?.first_name, profile?.last_name].filter(Boolean).join(' ') || 'Account';
+  const { signOut } = useAuth();
+  const items = navForRole(role);
 
   const [mounted, setMounted] = useState(open);
   const anim = useRef(new Animated.Value(0)).current;
@@ -114,8 +113,6 @@ function DrawerMenu({ role, open, onClose }: { role: Role; open: boolean; onClos
     ]);
   }
 
-  const ini = name.split(' ').map((w) => w[0]).filter(Boolean).slice(0, 2).join('').toUpperCase() || '?';
-
   return (
     <Modal visible transparent animationType="none" onRequestClose={onClose} statusBarTranslucent>
       <View style={{ flex: 1, flexDirection: 'row' }}>
@@ -124,56 +121,40 @@ function DrawerMenu({ role, open, onClose }: { role: Role; open: boolean; onClos
           <Pressable style={[StyleSheet.absoluteFill, styles.scrim]} onPress={onClose} />
         </Animated.View>
         <Animated.View style={[styles.panel, { width: PANEL_W, transform: [{ translateX }] }]}>
-          <LinearGradient colors={G.drawer} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} style={styles.panelInner}>
+          <LinearGradient colors={['#111111', '#166534']} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} style={styles.panelInner}>
             <SafeAreaView edges={['top', 'bottom']} style={{ flex: 1 }}>
-              <View style={styles.head}>
-                <Image source={EMBLEM} style={styles.emblemLg} resizeMode="contain" />
-                <Text style={styles.headBrand}>Muddarris</Text>
+              {/* Centered brand header (mirrors web sidebar) */}
+              <View style={styles.brandHeader}>
                 <Pressable onPress={onClose} hitSlop={10} style={styles.close}>
-                  <Ionicons name="close" size={20} color={C.textMid} />
+                  <Ionicons name="close" size={20} color={C.white} />
                 </Pressable>
-              </View>
-
-              <View style={styles.profileCard}>
-                <View style={styles.profileAvatar}><Text style={styles.profileIni}>{ini}</Text></View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.profileName} numberOfLines={1}>{name}</Text>
-                  <View style={styles.rolePill}>
-                    <Ionicons name="star" size={10} color={C.ink} />
-                    <Text style={styles.rolePillText}>{PORTAL_LABEL[role].toUpperCase()}</Text>
-                  </View>
+                <Image source={EMBLEM} style={styles.logoLg} resizeMode="contain" />
+                <Text style={styles.brandWord}>Muddarris</Text>
+                <View style={styles.portalPill}>
+                  <View style={styles.portalDot} />
+                  <Text style={styles.portalText}>{PORTAL_LABEL[role].toUpperCase()}</Text>
                 </View>
               </View>
 
-              <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: SPACE.md }} showsVerticalScrollIndicator={false}>
-                {sections.map((sec) => (
-                  <View key={sec.title} style={{ marginTop: SPACE.md }}>
-                    <Text style={styles.secLabel}>{sec.title}</Text>
-                    {sec.items.map((it) => {
-                      const active = pathname === it.route;
-                      return (
-                        <Pressable key={it.route} onPress={() => go(it.route)} style={styles.itemWrap}>
-                          {active ? (
-                            <LinearGradient colors={['#C9A227', '#E3C04A']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.itemActive}>
-                              <Ionicons name={it.icon} size={20} color={C.ink} />
-                              <Text style={styles.itemLabelActive}>{it.label}</Text>
-                              <Ionicons name="chevron-forward" size={16} color={C.ink} style={{ marginLeft: 'auto' }} />
-                            </LinearGradient>
-                          ) : (
-                            <View style={styles.item}>
-                              <Ionicons name={it.icon} size={20} color={C.textLo} />
-                              <Text style={styles.itemLabel}>{it.label}</Text>
-                            </View>
-                          )}
-                        </Pressable>
-                      );
-                    })}
-                  </View>
-                ))}
+              <View style={styles.divider} />
+
+              {/* Flat nav list */}
+              <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingTop: SPACE.sm, paddingBottom: SPACE.md }} showsVerticalScrollIndicator={false}>
+                {items.map((it) => {
+                  const active = pathname === it.route;
+                  return (
+                    <Pressable key={it.route} onPress={() => go(it.route)} style={[styles.item, active ? styles.itemActive : null]}>
+                      <Ionicons name={it.icon} size={20} color={active ? C.gold : C.white} />
+                      <Text style={[styles.itemLabel, active ? styles.itemLabelActive : null]}>{it.label}</Text>
+                      {active ? <Ionicons name="chevron-forward" size={16} color={C.gold} style={{ marginLeft: 'auto' }} /> : null}
+                    </Pressable>
+                  );
+                })}
               </ScrollView>
 
+              <View style={styles.divider} />
               <Pressable onPress={confirmSignOut} style={styles.signOut}>
-                <Ionicons name="log-out-outline" size={20} color={C.textMid} />
+                <Ionicons name="log-out-outline" size={20} color={C.white} />
                 <Text style={styles.signOutText}>Sign Out</Text>
               </Pressable>
             </SafeAreaView>
@@ -197,25 +178,21 @@ const styles = StyleSheet.create({
   scrim: { backgroundColor: 'rgba(0,0,0,0.35)' },
   panel: { position: 'absolute', right: 0, top: 0, bottom: 0, borderTopLeftRadius: RADIUS.sheet, borderBottomLeftRadius: RADIUS.sheet, overflow: 'hidden', shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 24, shadowOffset: { width: -8, height: 0 }, elevation: 16 },
   panelInner: { flex: 1 },
-  head: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: SPACE.lg, paddingTop: SPACE.md },
-  emblemLg: { width: 34, height: 34 },
-  headBrand: { color: C.white, fontFamily: FONT.displayBold, fontSize: 17, flex: 1 },
-  close: { width: 34, height: 34, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.10)', alignItems: 'center', justifyContent: 'center' },
+  brandHeader: { alignItems: 'center', paddingTop: SPACE.xl, paddingBottom: SPACE.md, paddingHorizontal: SPACE.lg },
+  close: { position: 'absolute', top: SPACE.sm, right: SPACE.sm, width: 34, height: 34, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.10)', alignItems: 'center', justifyContent: 'center' },
+  logoLg: { width: 60, height: 60, marginBottom: 8 },
+  brandWord: { color: C.white, fontFamily: FONT.displayBold, fontSize: 22 },
+  portalPill: { flexDirection: 'row', alignItems: 'center', gap: 7, marginTop: 10, paddingHorizontal: 14, paddingVertical: 6, borderRadius: RADIUS.pill, backgroundColor: 'rgba(201,162,39,0.10)', borderWidth: 1, borderColor: 'rgba(201,162,39,0.35)' },
+  portalDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: C.gold },
+  portalText: { color: C.gold, fontFamily: FONT.bodyBold, fontSize: 11, letterSpacing: 1.2 },
 
-  profileCard: { flexDirection: 'row', alignItems: 'center', gap: 12, marginHorizontal: SPACE.md, marginTop: SPACE.md, padding: SPACE.md, borderRadius: RADIUS.md, backgroundColor: 'rgba(255,255,255,0.08)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.10)' },
-  profileAvatar: { width: 46, height: 46, borderRadius: 23, backgroundColor: C.gold, alignItems: 'center', justifyContent: 'center' },
-  profileIni: { color: C.ink, fontFamily: FONT.bodyBold, fontSize: 17 },
-  profileName: { color: C.white, fontFamily: FONT.bodyBold, fontSize: 15 },
-  rolePill: { flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start', backgroundColor: C.gold, borderRadius: RADIUS.pill, paddingHorizontal: 9, paddingVertical: 3, marginTop: 5 },
-  rolePillText: { color: C.ink, fontFamily: FONT.bodyBold, fontSize: 9, letterSpacing: 0.5 },
+  divider: { height: 1, backgroundColor: 'rgba(255,255,255,0.10)', marginHorizontal: SPACE.lg },
 
-  secLabel: { color: 'rgba(255,255,255,0.45)', fontFamily: FONT.bodyBold, fontSize: 10, letterSpacing: 1.2, marginLeft: SPACE.lg, marginBottom: 6 },
-  itemWrap: { marginHorizontal: SPACE.sm },
-  item: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingHorizontal: SPACE.md, paddingVertical: 13, borderRadius: RADIUS.md },
-  itemActive: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingHorizontal: SPACE.md, paddingVertical: 13, borderRadius: RADIUS.md, ...SHADOW.card },
-  itemLabel: { color: C.textMid, fontFamily: FONT.bodyMed, fontSize: 15 },
-  itemLabelActive: { color: C.ink, fontFamily: FONT.bodyBold, fontSize: 15 },
+  item: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingHorizontal: SPACE.md, paddingVertical: 13, borderRadius: RADIUS.md, marginHorizontal: SPACE.sm, marginVertical: 2 },
+  itemActive: { backgroundColor: 'rgba(201,162,39,0.14)', borderWidth: 1, borderColor: 'rgba(201,162,39,0.5)' },
+  itemLabel: { color: C.white, fontFamily: FONT.bodyMed, fontSize: 15 },
+  itemLabelActive: { color: C.gold, fontFamily: FONT.bodyBold },
 
-  signOut: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: SPACE.lg, paddingVertical: 16, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.10)', marginHorizontal: SPACE.sm },
-  signOutText: { color: C.textMid, fontFamily: FONT.bodySemi, fontSize: 15 },
+  signOut: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: SPACE.lg, paddingVertical: 16, marginHorizontal: SPACE.sm },
+  signOutText: { color: C.white, fontFamily: FONT.bodySemi, fontSize: 15 },
 });
