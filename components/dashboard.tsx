@@ -2,6 +2,7 @@
 // Premium mobile dashboard kit. All widgets consume theme tokens (8px spacing,
 // radii 20/16, soft shadows) so every screen feels intentionally designed.
 
+import { useEffect, useRef, useState } from 'react';
 import { Image, Pressable, StyleSheet, Text, View, type ViewStyle } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -43,13 +44,79 @@ export function WelcomeHero({ eyebrow, title, subtitle, dots = 3, active = 0 }: 
 }
 
 /* ── Stat tiles (centered, colored) ─────────────────────────────── */
-type Tone = 'green' | 'gold' | 'indigo' | 'cream';
-const TONE: Record<Tone, { bg: string; icon: string; iconBg: string; value: string }> = {
-  green: { bg: C.tintGreen, icon: C.forest, iconBg: 'rgba(22,101,52,0.12)', value: C.ink },
-  gold: { bg: C.tintGold, icon: C.accent2, iconBg: 'rgba(201,162,39,0.18)', value: C.ink },
-  indigo: { bg: C.tintIndigo, icon: C.indigo, iconBg: 'rgba(79,70,229,0.12)', value: C.ink },
-  cream: { bg: C.tintCream, icon: C.muted, iconBg: 'rgba(17,17,17,0.05)', value: C.ink },
+type Tone = 'green' | 'gold' | 'mint' | 'indigo' | 'cream';
+// Exact web KpiCard gradients (135deg) + icon tints — do not drift.
+const TONE: Record<Tone, { from: string; to: string; icon: string; iconBg: string }> = {
+  green:  { from: '#F7F1E2', to: '#D4EDDA', icon: '#C9A227', iconBg: 'rgba(201,162,39,0.12)' },
+  gold:   { from: '#FFF8E8', to: '#FDEFC9', icon: '#C9A227', iconBg: 'rgba(201,162,39,0.12)' },
+  mint:   { from: '#F0FFF4', to: '#DCFCE7', icon: '#16A34A', iconBg: 'rgba(22,163,74,0.12)' },
+  indigo: { from: '#EEF2FF', to: '#E0E7FF', icon: '#4F46E5', iconBg: 'rgba(79,70,229,0.12)' },
+  cream:  { from: '#FFFFFF', to: '#F8F5EE', icon: '#C9A227', iconBg: 'rgba(201,162,39,0.10)' },
 };
+
+/* ── Dashboard banner slider (3 photos, auto-rotate — mirrors web) ── */
+type BannerRole = 'teacher' | 'parent' | 'student';
+interface Slide { uri: string; headline: string; sub: string }
+
+// Images are served live from the web app's /banners folder, so they render
+// immediately with zero extra steps. To bundle them locally instead, drop the
+// PNGs in assets/banners/ and swap `uri:` for `require('@/assets/banners/...')`
+// plus use <Image source={slide.img}> (require) instead of {{ uri }}.
+const BANNER_BASE = 'https://www.muddarris.com/banners';
+const SLIDES: Record<BannerRole, Slide[]> = {
+  teacher: [
+    { uri: `${BANNER_BASE}/teacher-1.png`, headline: 'Welcome Back, Teacher', sub: 'Your students are waiting for your guidance.' },
+    { uri: `${BANNER_BASE}/teacher-2.png`, headline: 'Share Your Knowledge', sub: 'Earn while teaching the words of Allah.' },
+    { uri: `${BANNER_BASE}/teacher-3.png`, headline: 'Grow Your Students', sub: 'Complete verification to go live on the platform.' },
+  ],
+  student: [
+    { uri: `${BANNER_BASE}/student-1.png`, headline: 'Continue Your Journey', sub: 'Every lesson brings you closer to Allah.' },
+    { uri: `${BANNER_BASE}/student-2.png`, headline: 'Deepen Your Understanding', sub: 'Tajweed, Hifz, Tafseer — learn at your pace.' },
+    { uri: `${BANNER_BASE}/student-3.png`, headline: 'Your Teacher is Ready', sub: 'Book your next lesson in seconds.' },
+  ],
+  parent: [
+    { uri: `${BANNER_BASE}/parent-1.png`, headline: 'Nurture Their Journey', sub: "Track your child's progress every step of the way." },
+    { uri: `${BANNER_BASE}/parent-2.png`, headline: 'Learning, Supervised', sub: 'Safe, certified teachers for your children.' },
+    { uri: `${BANNER_BASE}/parent-3.png`, headline: 'A Gift for Life', sub: 'Give your child the Quran — the greatest inheritance.' },
+  ],
+};
+
+export function BannerSlider({ role }: { role: BannerRole }) {
+  const list = SLIDES[role] ?? SLIDES.student;
+  const [current, setCurrent] = useState(0);
+  const timer = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    timer.current = setInterval(() => setCurrent((c) => (c + 1) % list.length), 4500);
+    return () => { if (timer.current) clearInterval(timer.current); };
+  }, [list.length]);
+
+  const slide = list[current];
+  return (
+    <View style={styles.banner}>
+      {/* charcoal -> forest -> gold fallback shows if the image is slow/unavailable */}
+      <LinearGradient colors={G.signature} locations={G.signatureLocations} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
+      <Image source={{ uri: slide.uri }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+      {/* dark-left wash so text stays readable, image visible on the right */}
+      <LinearGradient
+        colors={['rgba(17,17,17,0.82)', 'rgba(17,17,17,0.45)', 'rgba(17,17,17,0.06)']}
+        locations={[0, 0.45, 1]}
+        start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+        style={StyleSheet.absoluteFill}
+      />
+      <View style={styles.bannerText}>
+        <Text style={styles.bannerEyebrow}>MUDDARRIS</Text>
+        <Text style={styles.bannerHeadline}>{slide.headline}</Text>
+        <Text style={styles.bannerSub}>{slide.sub}</Text>
+      </View>
+      <View style={styles.bannerDots}>
+        {list.map((_, i) => (
+          <Pressable key={i} onPress={() => setCurrent(i)} style={[styles.bannerDot, i === current ? styles.bannerDotActive : null]} />
+        ))}
+      </View>
+    </View>
+  );
+}
 
 export function StatGrid({ children }: { children: React.ReactNode }) {
   return <View style={styles.grid}>{children}</View>;
@@ -58,13 +125,13 @@ export function StatGrid({ children }: { children: React.ReactNode }) {
 export function StatTile({ icon, value, label, tone = 'cream' }: { icon: keyof typeof Ionicons.glyphMap; value: string | number; label: string; tone?: Tone }) {
   const t = TONE[tone];
   return (
-    <View style={[styles.tile, { backgroundColor: t.bg }]}>
+    <LinearGradient colors={[t.from, t.to]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.tile}>
       <View style={[styles.tileIcon, { backgroundColor: t.iconBg }]}>
-        <Ionicons name={icon} size={18} color={t.icon} />
+        <Ionicons name={icon} size={20} color={t.icon} />
       </View>
-      <Text style={[styles.tileValue, { color: t.value }]}>{value}</Text>
+      <Text style={styles.tileValue}>{value}</Text>
       <Text style={styles.tileLabel}>{label}</Text>
-    </View>
+    </LinearGradient>
   );
 }
 
@@ -240,6 +307,14 @@ export function Initials({ name, size = 44 }: { name: string; size?: number }) {
 }
 
 const styles = StyleSheet.create({
+  banner: { height: 184, borderRadius: RADIUS.xl, overflow: 'hidden', marginBottom: SPACE.lg, ...SHADOW.lg },
+  bannerText: { position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, justifyContent: 'center', paddingHorizontal: SPACE.lg },
+  bannerEyebrow: { color: '#E3C04A', fontFamily: FONT.bodySemi, fontSize: 11, letterSpacing: 1.4, marginBottom: 4 },
+  bannerHeadline: { color: '#FFFFFF', fontFamily: FONT.displayBold, fontSize: 24, lineHeight: 28 },
+  bannerSub: { color: 'rgba(255,255,255,0.85)', fontFamily: FONT.body, fontSize: 13, marginTop: 6, maxWidth: '78%' },
+  bannerDots: { position: 'absolute', bottom: 14, right: 16, flexDirection: 'row', gap: 6 },
+  bannerDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: 'rgba(255,255,255,0.4)' },
+  bannerDotActive: { width: 22, backgroundColor: '#E3C04A' },
   sectionHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: SPACE.lg, marginBottom: SPACE.md },
   sectionTitle: { fontFamily: FONT.displayBold, fontSize: 18, color: C.ink },
   sectionAction: { fontFamily: FONT.bodySemi, fontSize: 13, color: C.gold },
@@ -255,9 +330,9 @@ const styles = StyleSheet.create({
   dotActive: { width: 18, backgroundColor: C.gold },
 
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: SPACE.md },
-  tile: { width: '47.5%', flexGrow: 1, borderRadius: RADIUS.lg, padding: SPACE.md, alignItems: 'center', ...SHADOW.card },
+  tile: { width: '47.5%', flexGrow: 1, borderRadius: RADIUS.lg, padding: SPACE.md, alignItems: 'center', overflow: 'hidden', ...SHADOW.card },
   tileIcon: { width: 38, height: 38, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginBottom: 10 },
-  tileValue: { fontFamily: FONT.displayBold, fontSize: 26 },
+  tileValue: { fontFamily: FONT.displayBold, fontSize: 26, color: C.ink },
   tileLabel: { fontFamily: FONT.bodyMed, fontSize: 12, color: C.muted, marginTop: 3, textAlign: 'center' },
 
   qa: { width: '47.5%', flexGrow: 1, backgroundColor: C.card, borderRadius: RADIUS.lg, paddingVertical: SPACE.lg, alignItems: 'center', ...SHADOW.card },
