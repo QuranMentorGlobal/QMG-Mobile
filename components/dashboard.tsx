@@ -56,28 +56,26 @@ const TONE: Record<Tone, { from: string; to: string; icon: string; iconBg: strin
 
 /* ── Dashboard banner slider (3 photos, auto-rotate — mirrors web) ── */
 type BannerRole = 'teacher' | 'parent' | 'student';
-interface Slide { uri: string; headline: string; sub: string }
+interface Slide { img: any; headline: string; sub: string }
 
-// Images are served live from the web app's /banners folder, so they render
-// immediately with zero extra steps. To bundle them locally instead, drop the
-// PNGs in assets/banners/ and swap `uri:` for `require('@/assets/banners/...')`
-// plus use <Image source={slide.img}> (require) instead of {{ uri }}.
-const BANNER_BASE = 'https://muddarris.com/banners';
+// Banner photos are bundled INTO the app (assets/banners/*.jpg, ~50KB each), so
+// they always render — independent of the web server, host, or network. They are
+// delivered with OTA updates like any other asset.
 const SLIDES: Record<BannerRole, Slide[]> = {
   teacher: [
-    { uri: `${BANNER_BASE}/teacher-1.png`, headline: 'Welcome Back, Teacher', sub: 'Your students are waiting for your guidance.' },
-    { uri: `${BANNER_BASE}/teacher-2.png`, headline: 'Share Your Knowledge', sub: 'Earn while teaching the words of Allah.' },
-    { uri: `${BANNER_BASE}/teacher-3.png`, headline: 'Grow Your Students', sub: 'Complete verification to go live on the platform.' },
+    { img: require('@/assets/banners/teacher-1.jpg'), headline: 'Welcome Back, Teacher', sub: 'Your students are waiting for your guidance.' },
+    { img: require('@/assets/banners/teacher-2.jpg'), headline: 'Share Your Knowledge', sub: 'Earn while teaching the words of Allah.' },
+    { img: require('@/assets/banners/teacher-3.jpg'), headline: 'Grow Your Students', sub: 'Complete verification to go live on the platform.' },
   ],
   student: [
-    { uri: `${BANNER_BASE}/student-1.png`, headline: 'Continue Your Journey', sub: 'Every lesson brings you closer to Allah.' },
-    { uri: `${BANNER_BASE}/student-2.png`, headline: 'Deepen Your Understanding', sub: 'Tajweed, Hifz, Tafseer — learn at your pace.' },
-    { uri: `${BANNER_BASE}/student-3.png`, headline: 'Your Teacher is Ready', sub: 'Book your next lesson in seconds.' },
+    { img: require('@/assets/banners/student-1.jpg'), headline: 'Continue Your Journey', sub: 'Every lesson brings you closer to Allah.' },
+    { img: require('@/assets/banners/student-2.jpg'), headline: 'Deepen Your Understanding', sub: 'Tajweed, Hifz, Tafseer — learn at your pace.' },
+    { img: require('@/assets/banners/student-3.jpg'), headline: 'Your Teacher is Ready', sub: 'Book your next lesson in seconds.' },
   ],
   parent: [
-    { uri: `${BANNER_BASE}/parent-1.png`, headline: 'Nurture Their Journey', sub: "Track your child's progress every step of the way." },
-    { uri: `${BANNER_BASE}/parent-2.png`, headline: 'Learning, Supervised', sub: 'Safe, certified teachers for your children.' },
-    { uri: `${BANNER_BASE}/parent-3.png`, headline: 'A Gift for Life', sub: 'Give your child the Quran — the greatest inheritance.' },
+    { img: require('@/assets/banners/parent-1.jpg'), headline: 'Nurture Their Journey', sub: "Track your child's progress every step of the way." },
+    { img: require('@/assets/banners/parent-2.jpg'), headline: 'Learning, Supervised', sub: 'Safe, certified teachers for your children.' },
+    { img: require('@/assets/banners/parent-3.jpg'), headline: 'A Gift for Life', sub: 'Give your child the Quran — the greatest inheritance.' },
   ],
 };
 
@@ -96,7 +94,7 @@ export function BannerSlider({ role }: { role: BannerRole }) {
     <View style={styles.banner}>
       {/* charcoal -> forest -> gold fallback shows if the image is slow/unavailable */}
       <LinearGradient colors={G.signature} locations={G.signatureLocations} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
-      <Image source={{ uri: slide.uri }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+      <Image source={slide.img} style={StyleSheet.absoluteFill} resizeMode="cover" />
       {/* dark-left wash so text stays readable, image visible on the right */}
       <LinearGradient
         colors={['rgba(17,17,17,0.82)', 'rgba(17,17,17,0.45)', 'rgba(17,17,17,0.06)']}
