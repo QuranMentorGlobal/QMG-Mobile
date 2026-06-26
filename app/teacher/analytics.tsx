@@ -1,12 +1,12 @@
 // app/teacher/analytics.tsx — teaching analytics (lessons trend, earnings, metrics).
 import { useCallback, useState } from 'react';
-import { View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect } from 'expo-router';
-import { Screen, Loading, PageTitle } from '@/components/ui';
+import { Screen, Loading } from '@/components/ui';
 import { Panel, PanelHeader, BarsChart, StatGrid, StatTile, MetricBar } from '@/components/dashboard';
 import { useAuth } from '@/lib/auth';
 import { fetchTeacherDash, fetchTeacherLessonTrend, fetchEarningsLedger, type MonthCount, type TeacherDash } from '@/lib/db';
-import { SPACE } from '@/lib/theme';
+import { C, FONT, SPACE } from '@/lib/theme';
 
 export default function TeacherAnalytics() {
   const { session } = useAuth();
@@ -38,7 +38,9 @@ export default function TeacherAnalytics() {
 
   return (
     <Screen>
-      <PageTitle title="Analytics" subtitle="Your teaching performance" />
+      <Text style={styles.eyebrow}>TEACHER PORTAL</Text>
+      <Text style={styles.h1}>Analytics</Text>
+      <Text style={styles.sub}>Your teaching performance — students, lessons, earnings and conversion.</Text>
 
       <StatGrid>
         <StatTile icon="people-outline" value={dash.totalStudents} label="Active Students" tone="green" />
@@ -67,3 +69,8 @@ export default function TeacherAnalytics() {
   );
 }
 
+const styles = StyleSheet.create({
+  eyebrow: { fontFamily: FONT.bodyBold, fontSize: 11, color: C.gold, letterSpacing: 1.2, marginTop: SPACE.sm, textAlign: 'center' },
+  h1: { fontFamily: FONT.displayBold, fontSize: 28, color: C.ink, marginTop: 2, textAlign: 'center' },
+  sub: { fontFamily: FONT.body, fontSize: 14, color: C.muted, marginTop: 4, marginBottom: SPACE.md, textAlign: 'center' },
+});
