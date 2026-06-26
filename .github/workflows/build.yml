@@ -1,9 +1,17 @@
 name: Build & Submit (Android · Play Internal)
 
 # Manual trigger: open the Actions tab → "Build & Submit" → Run workflow.
-# Builds a production .aab on EAS and submits it to the Google Play **internal** track.
-# Run this when you change native code/deps, the app version, icon, or permissions.
-# For JS-only changes, prefer the instant "OTA Update" workflow instead.
+# Builds a production .aab LOCALLY on the GitHub runner (eas build --local) and
+# submits it to the Google Play **internal** track.
+#
+# Why --local: local CI builds are ALWAYS free and DO NOT count against your
+# EAS Build monthly quota (the 15 Android builds). Signing still reuses your
+# EAS-managed upload keystore automatically via EXPO_TOKEN, so Play keeps
+# accepting your uploads with no keystore handling here.
+#
+# Run this only when native code/deps, the app version, icon, splash, banner
+# image assets, or permissions change. For JS/asset code changes, use the
+# instant "OTA Update" workflow instead.
 
 on:
   workflow_dispatch:
@@ -26,6 +34,13 @@ jobs:
           node-version: 20
           cache: npm
 
+      # Local Android builds need a JDK — 17 is what Expo's Android builds use.
+      - name: Setup Java (JDK 17)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
       - name: Setup EAS
         uses: expo/expo-github-action@v8
         with:
@@ -39,9 +54,12 @@ jobs:
         if: ${{ inputs.submit }}
         run: echo '${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}' > play-service-account.json
 
-      - name: Build Android (production)
-        run: eas build --platform android --profile production --non-interactive --wait
+      # --local => builds on THIS runner (free, no EAS quota). Credentials +
+      # versionCode (appVersionSource: remote, autoIncrement) are still pulled
+      # from EAS, so signing and versioning behave exactly like a cloud build.
+      - name: Build Android AAB locally (no EAS quota)
+        run: eas build --platform android --profile production --local --non-interactive --output ./app-release.aab
 
-      - name: Submit to Play internal track
+      - name: Submit the built AAB to Play (internal track)
         if: ${{ inputs.submit }}
-        run: eas submit --platform android --profile production --latest --non-interactive
+        run: eas submit --platform android --profile production --path ./app-release.aab --non-interactive
