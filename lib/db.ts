@@ -668,12 +668,13 @@ export interface BookingCourse {
   id: string; title: string; category: string | null; description: string | null;
   price_usd: number; is_free: boolean; duration_mins: number; product_type: string; lessons: number;
   monthly_price_usd: number | null; lessons_per_month: number | null;
+  allow_local_pricing: boolean; local_currency: string | null; local_price: number | null;
 }
 
 export async function fetchBookingCourses(teacherId: string): Promise<{ trial: BookingCourse[]; recorded: BookingCourse[]; live: BookingCourse[]; program: BookingCourse[] }> {
   return safe(async () => {
     const { data } = await (supabase as any).from('courses')
-      .select('id, title, category, description, price_usd, is_free, duration_mins, product_type, monthly_price_usd, lessons_per_month')
+      .select('id, title, category, description, price_usd, is_free, duration_mins, product_type, monthly_price_usd, lessons_per_month, allow_local_pricing, local_currency, local_price')
       .eq('teacher_id', teacherId).eq('is_active', true);
     const rows = (data as any[]) ?? [];
     const ids = rows.map((r) => r.id);
@@ -692,6 +693,7 @@ export async function fetchBookingCourses(teacherId: string): Promise<{ trial: B
       price_usd: Number(r.price_usd ?? 0), is_free: !!r.is_free, duration_mins: dur[r.id] ?? r.duration_mins ?? 30,
       product_type: r.product_type ?? 'trial', lessons: lessons[r.id] ?? 0,
       monthly_price_usd: r.monthly_price_usd ?? null, lessons_per_month: r.lessons_per_month ?? null,
+      allow_local_pricing: !!r.allow_local_pricing, local_currency: r.local_currency ?? null, local_price: r.local_price != null ? Number(r.local_price) : null,
     });
     return {
       trial: rows.filter((r) => r.product_type === 'trial').map(map),
@@ -806,6 +808,23 @@ export async function countUnreadNotifications(uid: string): Promise<number> {
     const { count } = await (supabase as any).from('notifications').select('id', { count: 'exact', head: true }).eq('user_id', uid).eq('is_read', false);
     return count ?? 0;
   }, 0);
+}
+
+export interface CheckoutQuote { mode: 'local' | 'international'; effectiveUsd: number; studentCurrency: string; amountLocal: number; }
+
+// Server-authoritative price quote for a booking (same resolver the payment routes
+// use, so the displayed amount equals what's charged). Lets the checkout show the
+// truthful local amount to eligible students. Mirrors the web checkout page.
+export async function fetchCheckoutQuote(bookingId: string): Promise<CheckoutQuote | null> {
+  try {
+    const res = await fetch(`${API_BASE}/api/pricing/checkout-quote`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ bookingId }),
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok || !json?.quote) return null;
+    return json.quote as CheckoutQuote;
+  } catch { return null; }
 }
 
 export async function walletInitiate(args: { bookingId: string; provider: 'jazzcash' | 'easypaisa'; amount: number; walletNumber: string }): Promise<{ ok: boolean; error?: string }> {

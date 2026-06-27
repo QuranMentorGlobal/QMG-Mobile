@@ -1,16 +1,17 @@
 // components/CheckoutScreen.tsx — checkout + payment (shared student/parent).
 // Card payment posts to the production /api/payments/process (service-role, mock
 // Stripe). 4000 0000 0000 0002 declines client-side, like the website.
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { Screen, Loading } from '@/components/ui';
 import { useAuth } from '@/lib/auth';
-import { processCardPayment, walletInitiate } from '@/lib/db';
+import { processCardPayment, walletInitiate, fetchCheckoutQuote, type CheckoutQuote } from '@/lib/db';
 import { C, FONT, G, RADIUS, SHADOW, SPACE } from '@/lib/theme';
 import { Price } from '@/components/Price';
+import { formatCurrency } from '@/lib/pricing/currency';
 
 type Method = 'card' | 'jazzcash' | 'easypaisa' | 'bank';
 const METHODS: { key: Method; label: string; desc: string; icon: keyof typeof Ionicons.glyphMap; manual?: boolean }[] = [
@@ -45,6 +46,8 @@ export function CheckoutScreen({ bookingsPath }: { bookingsPath: string }) {
   const [walletNumber, setWalletNumber] = useState('');
   const [step, setStep] = useState<'form' | 'processing' | 'success' | 'declined' | 'pending'>('form');
   const [err, setErr] = useState<string | null>(null);
+  const [quote, setQuote] = useState<CheckoutQuote | null>(null);
+  useEffect(() => { if (params.bookingId) fetchCheckoutQuote(params.bookingId).then(setQuote); }, [params.bookingId]);
 
   const last4 = useMemo(() => card.replace(/\s/g, '').slice(-4), [card]);
 
@@ -136,6 +139,18 @@ export function CheckoutScreen({ bookingsPath }: { bookingsPath: string }) {
 
   return (
     <Screen>
+      {quote && (
+        <View style={styles.quoteBox}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.quoteLabel}>YOU'LL PAY</Text>
+            <Text style={styles.quoteAmount}>{formatCurrency(quote.amountLocal, quote.studentCurrency)}</Text>
+            <Text style={styles.quoteApprox}>≈ {formatCurrency(quote.effectiveUsd, 'usd')}{quote.studentCurrency !== 'usd' ? ' USD' : ''}</Text>
+          </View>
+          {quote.mode === 'local' && (
+            <View style={styles.localPill}><Text style={styles.localPillText}>Local price applied</Text></View>
+          )}
+        </View>
+      )}
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} hitSlop={8} style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
           <Ionicons name="chevron-back" size={20} color={C.ink} /><Text style={styles.cancel}>Cancel</Text>
@@ -289,6 +304,12 @@ function SuccessRow({ k, v, bold }: { k: string; v: string; bold?: boolean }) {
 }
 
 const styles = StyleSheet.create({
+  quoteBox: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: C.cream, borderWidth: 1, borderColor: '#E8E4DA', borderRadius: RADIUS.md, paddingVertical: 14, paddingHorizontal: 18, marginTop: SPACE.xs, marginBottom: SPACE.md },
+  quoteLabel: { fontFamily: FONT.bodyBold, fontSize: 11, color: C.muted, letterSpacing: 1 },
+  quoteAmount: { fontFamily: FONT.displayBold, fontSize: 24, color: C.ink, marginTop: 2 },
+  quoteApprox: { fontFamily: FONT.body, fontSize: 12.5, color: C.muted, marginTop: 2 },
+  localPill: { backgroundColor: '#EAF3EC', borderWidth: 1, borderColor: '#C9E3CD', borderRadius: RADIUS.pill, paddingVertical: 5, paddingHorizontal: 12 },
+  localPillText: { fontFamily: FONT.bodyBold, fontSize: 12, color: C.forest },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: SPACE.xs, marginBottom: SPACE.md, paddingBottom: SPACE.md, borderBottomWidth: 1, borderBottomColor: C.borderSoft },
   cancel: { fontFamily: FONT.bodySemi, fontSize: 14, color: C.ink },
   portalLabel: { fontFamily: FONT.bodyBold, fontSize: 10, color: C.gold, letterSpacing: 1 },
