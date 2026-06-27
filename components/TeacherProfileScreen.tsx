@@ -11,8 +11,9 @@ import { Screen, Loading, Avatar } from '@/components/ui';
 import { useAuth } from '@/lib/auth';
 import { fetchTeacherProfile, saveTeacherProfile, saveNotifyPrefs, updatePassword, type TeacherProfileData } from '@/lib/db';
 import { C, FONT, RADIUS, SHADOW, SPACE } from '@/lib/theme';
+import { MediaPickerButton } from '@/components/MediaPickerButton';
 
-const WEB = 'https://www.quranmentorglobal.com/platform/teacher/profile';
+const WEB = 'https://muddarris.com/platform/teacher/profile';
 const COUNTRIES = ['Pakistan', 'United Kingdom', 'United States', 'UAE', 'Saudi Arabia', 'Canada', 'Australia', 'Bangladesh', 'India', 'Other'];
 const SPECIALIZATIONS = ['Noorani Qaida', 'Tajweed', 'Hifz', 'Tafseer', 'Islamic Studies', 'Ijazah'];
 const LANGUAGES = ['English', 'Urdu', 'Arabic', 'Pashto', 'Bengali', 'French', 'Turkish'];
@@ -121,7 +122,7 @@ export function TeacherProfileScreen() {
       <Text style={styles.h1}>My Profile</Text>
       <Text style={styles.sub}>One place to manage your public profile, credentials and trust.</Text>
 
-      <Pressable style={styles.outlineBtn} onPress={() => Linking.openURL(`https://www.quranmentorglobal.com/platform/teachers/${uid}`)}>
+      <Pressable style={styles.outlineBtn} onPress={() => Linking.openURL(`https://muddarris.com/platform/teachers/${uid}`)}>
         <Ionicons name="globe-outline" size={16} color={C.forest} />
         <Text style={styles.outlineBtnText}>View public profile</Text>
       </Pressable>
@@ -177,10 +178,16 @@ export function TeacherProfileScreen() {
       <Section icon="person-outline" title="Personal Information" sensitive readOnly={isReadOnly}>
         <View style={styles.photoRow}>
           <Avatar uri={d.photoUrl} name={`${d.firstName} ${d.lastName}`} size={72} />
-          <Pressable style={styles.goldOutline} onPress={() => Linking.openURL(WEB)}>
-            <Ionicons name="cloud-upload-outline" size={15} color={C.accent2} />
-            <Text style={styles.goldOutlineText}>{d.photoUrl ? 'Change photo' : 'Upload photo'}</Text>
-          </Pressable>
+          {isReadOnly ? (
+            <View style={[styles.goldOutline, { opacity: 0.5 }]}>
+              <Ionicons name="cloud-upload-outline" size={15} color={C.accent2} />
+              <Text style={styles.goldOutlineText}>Locked during review</Text>
+            </View>
+          ) : (
+            <View style={{ flex: 1 }}>
+              <MediaPickerButton kind="image" label={d.photoUrl ? 'Change photo' : 'Upload photo'} onPicked={(url) => set('photoUrl', url)} />
+            </View>
+          )}
         </View>
         <Lbl>First name</Lbl><Inp value={d.firstName} onChangeText={(v) => set('firstName', v)} editable={!isReadOnly} />
         <Lbl>Last name</Lbl><Inp value={d.lastName} onChangeText={(v) => set('lastName', v)} editable={!isReadOnly} />
@@ -247,10 +254,14 @@ export function TeacherProfileScreen() {
 
       {/* INTRO VIDEO (sensitive) */}
       <Section icon="videocam-outline" title="Intro Video" sensitive readOnly={isReadOnly}>
-        <Pressable style={styles.goldOutline} onPress={() => Linking.openURL(WEB)}>
-          <Ionicons name="videocam-outline" size={15} color={C.accent2} />
-          <Text style={styles.goldOutlineText}>{d.videoUrl ? 'Replace intro video' : 'Upload intro video'}</Text>
-        </Pressable>
+        {isReadOnly ? (
+          <View style={[styles.goldOutline, { opacity: 0.5 }]}>
+            <Ionicons name="videocam-outline" size={15} color={C.accent2} />
+            <Text style={styles.goldOutlineText}>Locked during review</Text>
+          </View>
+        ) : (
+          <MediaPickerButton kind="video" label={d.videoUrl ? 'Replace intro video' : 'Upload intro video'} onPicked={(url) => set('videoUrl', url)} />
+        )}
         {d.videoUrl ? <Text style={[styles.note, { marginTop: 8 }]}>Uploaded video</Text> : null}
       </Section>
 
