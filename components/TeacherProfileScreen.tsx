@@ -9,11 +9,11 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { Screen, Loading, Avatar } from '@/components/ui';
 import { useAuth } from '@/lib/auth';
-import { fetchTeacherProfile, saveTeacherProfile, saveNotifyPrefs, updatePassword, type TeacherProfileData } from '@/lib/db';
+import * as DocumentPicker from 'expo-document-picker';
+import { fetchTeacherProfile, saveTeacherProfile, saveNotifyPrefs, updatePassword, uploadVerificationDoc, type TeacherProfileData } from '@/lib/db';
 import { C, FONT, RADIUS, SHADOW, SPACE } from '@/lib/theme';
 import { MediaPickerButton } from '@/components/MediaPickerButton';
 
-const WEB = 'https://muddarris.com/platform/teacher/profile';
 const COUNTRIES = ['Pakistan', 'United Kingdom', 'United States', 'UAE', 'Saudi Arabia', 'Canada', 'Australia', 'Bangladesh', 'India', 'Other'];
 const SPECIALIZATIONS = ['Noorani Qaida', 'Tajweed', 'Hifz', 'Tafseer', 'Islamic Studies', 'Ijazah'];
 const LANGUAGES = ['English', 'Urdu', 'Arabic', 'Pashto', 'Bengali', 'French', 'Turkish'];
@@ -37,6 +37,7 @@ export function TeacherProfileScreen() {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [pendingSensitive, setPendingSensitive] = useState<string[]>([]);
   const [countryOpen, setCountryOpen] = useState(false);
+  const [docBusy, setDocBusy] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (!uid) return;
@@ -56,6 +57,21 @@ export function TeacherProfileScreen() {
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
   const isReadOnly = d?.status === 'pending' || d?.status === 'pending_review';
+
+  async function pickDoc(kind: 'id' | 'ijazah') {
+    try {
+      const res = await DocumentPicker.getDocumentAsync({ type: ['application/pdf', 'image/*'], copyToCacheDirectory: true });
+      if (res.canceled || !res.assets?.[0]) return;
+      const a = res.assets[0];
+      setDocBusy(kind);
+      const ext = (a.name?.split('.').pop() || 'pdf').toLowerCase();
+      const ct = a.mimeType || (ext === 'pdf' ? 'application/pdf' : 'image/jpeg');
+      const path = await uploadVerificationDoc(a.uri, ct, ext);
+      setDocBusy(null);
+      if (path) { set(kind === 'id' ? 'idDocUrl' : 'ijazahDocUrl', path); Alert.alert('Uploaded', 'Document uploaded securely.'); }
+      else Alert.alert('Upload failed', 'Please try again.');
+    } catch { setDocBusy(null); Alert.alert('Upload failed', 'Please try again.'); }
+  }
 
   function set<K extends keyof TeacherProfileData>(k: K, v: TeacherProfileData[K]) {
     setD((p) => (p ? { ...p, [k]: v } : p));
@@ -232,18 +248,18 @@ export function TeacherProfileScreen() {
           </Pressable>
         </View>
         <Lbl>Ijazah certificate</Lbl>
-        <Pressable style={styles.docBtn} onPress={() => Linking.openURL(WEB)}>
+        <Pressable style={[styles.docBtn, (isReadOnly || docBusy === 'ijazah') && { opacity: 0.5 }]} disabled={isReadOnly || docBusy === 'ijazah'} onPress={() => pickDoc('ijazah')}>
           <Ionicons name="document-text-outline" size={15} color={C.ink} />
-          <Text style={styles.docText}>{d.ijazahDocUrl ? 'Uploaded Ijazah' : 'Upload Ijazah (on web)'}</Text>
+          <Text style={styles.docText}>{docBusy === 'ijazah' ? 'Uploading…' : d.ijazahDocUrl ? 'Uploaded Ijazah' : 'Upload Ijazah'}</Text>
         </Pressable>
       </Section>
 
       {/* IDENTITY (sensitive) */}
       <Section icon="document-text-outline" title="Identity Documents" sensitive readOnly={isReadOnly} status={d.flags.identity_verified ? 'verified' : undefined}>
         <Text style={styles.note}>Stored privately and used only for verification. Never shown publicly.</Text>
-        <Pressable style={styles.docBtn} onPress={() => Linking.openURL(WEB)}>
+        <Pressable style={[styles.docBtn, (isReadOnly || docBusy === 'id') && { opacity: 0.5 }]} disabled={isReadOnly || docBusy === 'id'} onPress={() => pickDoc('id')}>
           <Ionicons name="cloud-upload-outline" size={15} color={C.ink} />
-          <Text style={styles.docText}>{d.idDocUrl ? 'Uploaded ID' : 'Upload Government ID (on web)'}</Text>
+          <Text style={styles.docText}>{docBusy === 'id' ? 'Uploading…' : d.idDocUrl ? 'Uploaded ID' : 'Upload Government ID'}</Text>
         </Pressable>
       </Section>
 

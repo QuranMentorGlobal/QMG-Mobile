@@ -56,6 +56,13 @@
           "microphonePermission": "Muddarris needs microphone access so you can record voice notes."
         }
       ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Muddarris uses your location to set your country so prices show in your local currency and lesson times are correct.",
+          "locationAlwaysAndWhenInUsePermission": "Muddarris uses your location to set your country so prices show in your local currency and lesson times are correct."
+        }
+      ],
       "./plugins/withBuildFixes"
     ],
     "experiments": {

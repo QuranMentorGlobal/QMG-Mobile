@@ -14,6 +14,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth';
+import * as Location from 'expo-location';
 import { useDisplayCurrency, resetDisplayCurrency } from '@/lib/pricing/useDisplayCurrency';
 import { C, FONT, RADIUS, SPACE } from '@/lib/theme';
 
@@ -31,20 +32,26 @@ export function LocationGateBanner({ profileHref }: { profileHref: string }) {
   async function detect() {
     if (!session?.user) { router.push(profileHref as any); return; }
     setBusy(true); setMsg('');
+    let name: string | null = null;
+    // 1) Device GPS (asks permission) → reverse-geocode to country.
     try {
-      const r = await fetch('https://ipapi.co/json/');
-      const j: any = await r.json();
-      const name: string | null = j?.country_name || null;
-      if (name) {
-        const { error } = await (supabase as any).from('profiles').update({ country: name }).eq('id', session.user.id);
-        if (!error) { resetDisplayCurrency(); setHidden(true); return; }
+      const perm = await Location.requestForegroundPermissionsAsync();
+      if (perm.status === 'granted') {
+        const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Low });
+        const geo = await Location.reverseGeocodeAsync({ latitude: pos.coords.latitude, longitude: pos.coords.longitude });
+        name = geo?.[0]?.country || null;
       }
-      setMsg('Couldn’t detect — please set it in your profile.');
-    } catch {
-      setMsg('Couldn’t detect — please set it in your profile.');
-    } finally {
-      setBusy(false);
+    } catch { /* fall through to IP */ }
+    // 2) Fallback: IP geolocation (no permission needed).
+    if (!name) {
+      try { const r = await fetch('https://ipapi.co/json/'); const j: any = await r.json(); name = j?.country_name || null; } catch { /* ignore */ }
     }
+    if (name && session?.user) {
+      const { error } = await (supabase as any).from('profiles').update({ country: name }).eq('id', session.user.id);
+      if (!error) { resetDisplayCurrency(); setHidden(true); setBusy(false); return; }
+    }
+    setBusy(false);
+    setMsg('Couldn’t detect — please set it in your profile.');
   }
 
   return (

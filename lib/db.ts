@@ -760,6 +760,20 @@ export async function uploadToAttachments(uri: string, contentType: string, ext:
   }, null);
 }
 
+// Upload a verification document (ID / Ijazah) to the PRIVATE verification-documents
+// bucket and return its storage PATH (not a public URL) — these are sensitive and
+// must never be world-readable. Mirrors the web's doc-upload path exactly.
+export async function uploadVerificationDoc(uri: string, contentType: string, ext: string): Promise<string | null> {
+  return safe(async () => {
+    const resp = await fetch(uri);
+    const blob = await resp.blob();
+    const path = `mobile/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+    const { error } = await (supabase as any).storage.from('verification-documents').upload(path, blob, { contentType, upsert: true });
+    if (error) return null;
+    return path;
+  }, null);
+}
+
 export async function sendAttachmentMessage(convId: string, uid: string, att: { url: string; type: string; name: string }, body = ''): Promise<boolean> {
   return safe(async () => {
     const { error } = await (supabase as any).from('messages').insert({
