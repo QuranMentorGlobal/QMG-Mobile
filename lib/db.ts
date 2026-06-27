@@ -637,7 +637,7 @@ export async function addChildByEmail(parentId: string, email: string): Promise<
 
 // ── Booking workflow (Teachers · Detail · Booking · Checkout) ────────────────
 
-export const API_BASE = 'https://muddarris.com';
+export const API_BASE = 'https://www.muddarris.com';
 
 export interface TeacherDetail {
   id: string; name: string; firstName: string; avatar_url: string | null; country: string | null;
@@ -825,6 +825,48 @@ export async function fetchCheckoutQuote(bookingId: string): Promise<CheckoutQuo
     if (!res.ok || !json?.quote) return null;
     return json.quote as CheckoutQuote;
   } catch { return null; }
+}
+
+// ── AI features (Groq-backed, gated server-side by /api/ai/status) ────────────
+export async function aiStatus(): Promise<boolean> {
+  try {
+    const res = await fetch(`${API_BASE}/api/ai/status`);
+    const j = await res.json().catch(() => ({}));
+    return !!j?.enabled;
+  } catch { return false; }
+}
+
+export async function aiRecommendTeachers(input: { goal: string; language: string; gender: string; maxBudget: number; notes: string }): Promise<{ id: string; why: string }[]> {
+  try {
+    const res = await fetch(`${API_BASE}/api/ai/recommend-teachers`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(input),
+    });
+    const j = await res.json().catch(() => ({}));
+    return Array.isArray(j?.recommendations) ? j.recommendations : [];
+  } catch { return []; }
+}
+
+export async function aiImproveText(field: string, text: string, context: any): Promise<string | null> {
+  try {
+    const res = await fetch(`${API_BASE}/api/ai/improve-text`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ field, text, context }),
+    });
+    const j = await res.json().catch(() => ({}));
+    return j?.suggestion || null;
+  } catch { return null; }
+}
+
+export async function aiSupportAssistant(question: string, role: string): Promise<{ answer: string | null; answered: boolean; sources?: any[] }> {
+  try {
+    const res = await fetch(`${API_BASE}/api/ai/support-assistant`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ question, role }),
+    });
+    const j = await res.json().catch(() => ({}));
+    return { answer: j?.answer || null, answered: !!j?.answered, sources: j?.sources || [] };
+  } catch { return { answer: null, answered: false }; }
 }
 
 export async function walletInitiate(args: { bookingId: string; provider: 'jazzcash' | 'easypaisa'; amount: number; walletNumber: string }): Promise<{ ok: boolean; error?: string }> {

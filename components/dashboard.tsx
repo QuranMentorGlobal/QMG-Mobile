@@ -96,7 +96,7 @@ export function BannerSlider({ role }: { role: BannerRole }) {
   const [aspect, setAspect] = useState(1080 / 420); // sensible hero ratio until measured
   // Prefer the full web image (identical to the website); fall back to the bundled
   // photo only if the network image fails to load.
-  const webUrl = `https://muddarris.com/banners/${role}-${current + 1}.png`;
+  const webUrl = `https://www.muddarris.com/banners/${role}-${current + 1}.png`;
   // Size the banner to the image's real shape so it shows fully (no crop, no bands).
   useEffect(() => {
     let alive = true;

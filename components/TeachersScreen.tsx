@@ -1,19 +1,21 @@
 // components/TeachersScreen.tsx — Browse Teachers (shared student/parent).
 // Search · category chips with counts · max-price filter · marketplace cards.
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { Screen, Loading } from '@/components/ui';
 import { EmptyCard, Initials } from '@/components/dashboard';
-import { fetchTeachers, teacherName, type PublicTeacher } from '@/lib/db';
+import { fetchTeachers, teacherName, aiStatus, aiRecommendTeachers, type PublicTeacher } from '@/lib/db';
 import { C, FONT, RADIUS, SHADOW, SPACE } from '@/lib/theme';
 import { Price } from '@/components/Price';
 
 const CATEGORIES = ['All Teachers', 'Noorani Qaida', 'Tajweed', 'Hifz', 'Tafseer', 'Islamic Studies', 'Ijazah'];
 const PRICE_CAPS = [25, 50, 100, 200];
 const HEADER_GRADIENT = ['#15402A', '#166534'] as const;
+
+const GOALS = [{ v: 'any', l: 'Any subject' }, { v: 'Noorani Qaida', l: 'Noorani Qaida' }, { v: 'Tajweed', l: 'Tajweed' }, { v: 'Hifz', l: 'Hifz' }, { v: 'Tafseer', l: 'Tafseer' }, { v: 'Islamic Studies', l: 'Islamic Studies' }, { v: 'Ijazah', l: 'Ijazah' }];
 
 export function TeachersScreen({ basePath }: { basePath: string }) {
   const router = useRouter();
@@ -22,6 +24,26 @@ export function TeachersScreen({ basePath }: { basePath: string }) {
   const [q, setQ] = useState('');
   const [cat, setCat] = useState('All Teachers');
   const [maxPrice, setMaxPrice] = useState(200);
+  const [aiEnabled, setAiEnabled] = useState(false);
+  const [aiOpen, setAiOpen] = useState(false);
+  const [goal, setGoal] = useState('any');
+  const [language, setLanguage] = useState('');
+  const [gender, setGender] = useState('any');
+  const [budget, setBudget] = useState('');
+  const [notes, setNotes] = useState('');
+  const [aiLoading, setAiLoading] = useState(false);
+  const [recs, setRecs] = useState<{ id: string; why: string }[] | null>(null);
+  const [aiMsg, setAiMsg] = useState('');
+  useEffect(() => { aiStatus().then(setAiEnabled); }, []);
+  const byId = useMemo(() => Object.fromEntries(teachers.map((t) => [t.id, t])), [teachers]);
+  const matched = (recs || []).map((r) => ({ teacher: byId[r.id] as PublicTeacher | undefined, why: r.why })).filter((x) => x.teacher);
+  async function findMatch() {
+    setAiLoading(true); setRecs(null); setAiMsg('');
+    const list = await aiRecommendTeachers({ goal, language, gender, maxBudget: budget ? Number(budget) : 0, notes });
+    setRecs(list);
+    if (list.length === 0) setAiMsg('No teachers matched those preferences — try widening them.');
+    setAiLoading(false);
+  }
 
   const load = useCallback(async () => {
     setTeachers(await fetchTeachers());
@@ -58,14 +80,67 @@ export function TeachersScreen({ basePath }: { basePath: string }) {
       <Text style={styles.h1}>Teachers</Text>
       <Text style={styles.sub}>Find a certified Qari that matches your learning goals.</Text>
 
-      <View style={styles.aiCard}>
-        <View style={styles.aiIcon}><Ionicons name="sparkles" size={18} color={C.gold} /></View>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.aiTitle}>Find my best match</Text>
-          <Text style={styles.aiBody}>Answer a few questions and let AI pick teachers for you.</Text>
+      {aiEnabled && (
+        <View style={styles.aiCard}>
+          <Pressable onPress={() => setAiOpen((o) => !o)} style={styles.aiHeader}>
+            <View style={styles.aiIcon}><Ionicons name="sparkles" size={18} color={C.gold} /></View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.aiTitle}>Find my best match</Text>
+              <Text style={styles.aiBody}>Answer a few questions and let AI pick teachers for you.</Text>
+            </View>
+            <Ionicons name={aiOpen ? 'chevron-up' : 'chevron-down'} size={18} color={C.muted} />
+          </Pressable>
+          {aiOpen && (
+            <View style={styles.aiForm}>
+              <Text style={styles.aiLabel}>What do you want to learn?</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.aiChipRow}>
+                {GOALS.map((g) => (
+                  <Pressable key={g.v} onPress={() => setGoal(g.v)} style={[styles.aiChip, goal === g.v && styles.aiChipOn]}>
+                    <Text style={[styles.aiChipText, goal === g.v && styles.aiChipTextOn]}>{g.l}</Text>
+                  </Pressable>
+                ))}
+              </ScrollView>
+              <Text style={styles.aiLabel}>Preferred language</Text>
+              <TextInput value={language} onChangeText={setLanguage} placeholder="e.g. English, Urdu, Arabic" placeholderTextColor={C.faint} style={styles.aiInput} />
+              <Text style={styles.aiLabel}>Teacher gender</Text>
+              <View style={styles.aiChipWrap}>
+                {[['any', 'No preference'], ['male', 'Male'], ['female', 'Female']].map(([v, l]) => (
+                  <Pressable key={v} onPress={() => setGender(v)} style={[styles.aiChip, gender === v && styles.aiChipOn]}>
+                    <Text style={[styles.aiChipText, gender === v && styles.aiChipTextOn]}>{l}</Text>
+                  </Pressable>
+                ))}
+              </View>
+              <Text style={styles.aiLabel}>Max budget / hour (USD)</Text>
+              <TextInput value={budget} onChangeText={(v) => setBudget(v.replace(/[^0-9]/g, ''))} keyboardType="number-pad" placeholder="e.g. 25" placeholderTextColor={C.faint} style={styles.aiInput} />
+              <Text style={styles.aiLabel}>Anything else? (optional)</Text>
+              <TextInput value={notes} onChangeText={setNotes} placeholder="e.g. patient with kids, flexible evenings" placeholderTextColor={C.faint} style={styles.aiInput} />
+              <Pressable onPress={findMatch} disabled={aiLoading} style={{ marginTop: SPACE.md }}>
+                <LinearGradient colors={['#166534', '#C9A227']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={[styles.aiBtn, aiLoading && { opacity: 0.6 }]}>
+                  <Text style={styles.aiBtnText}>{aiLoading ? 'Finding your match…' : 'Find my match'}</Text>
+                </LinearGradient>
+              </Pressable>
+              {aiMsg ? <Text style={styles.aiNote}>{aiMsg}</Text> : null}
+              {matched.length > 0 && (
+                <View style={{ marginTop: SPACE.md }}>
+                  <Text style={styles.aiRecHead}>RECOMMENDED FOR YOU</Text>
+                  {matched.map(({ teacher, why }) => (
+                    <View key={teacher!.id} style={{ marginBottom: SPACE.md }}>
+                      {!!why && (
+                        <View style={styles.whyBox}>
+                          <Ionicons name="sparkles" size={13} color={C.gold} style={{ marginTop: 1 }} />
+                          <Text style={styles.whyText}>{why}</Text>
+                        </View>
+                      )}
+                      <TeacherCard t={teacher!} onProfile={() => router.push(`${basePath}/${teacher!.id}` as any)} onCourses={() => router.push(`${basePath}/${teacher!.id}/book` as any)} />
+                    </View>
+                  ))}
+                  <Text style={styles.aiDisclaimer}>AI-ranked from teachers matching your filters · always review profiles before booking.</Text>
+                </View>
+              )}
+            </View>
+          )}
         </View>
-        <Ionicons name="chevron-down" size={18} color={C.muted} />
-      </View>
+      )}
 
       <View style={styles.search}>
         <Ionicons name="search" size={18} color={C.faint} />
@@ -166,6 +241,23 @@ const styles = StyleSheet.create({
   aiIcon: { width: 40, height: 40, borderRadius: 20, backgroundColor: C.tintGold, alignItems: 'center', justifyContent: 'center' },
   aiTitle: { fontFamily: FONT.displayBold, fontSize: 15, color: C.ink },
   aiBody: { fontFamily: FONT.body, fontSize: 12, color: C.muted, marginTop: 2 },
+  aiHeader: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  aiForm: { marginTop: SPACE.md, paddingTop: SPACE.md, borderTopWidth: 1, borderTopColor: C.borderSoft },
+  aiLabel: { fontFamily: FONT.bodySemi, fontSize: 12, color: C.ink, marginBottom: 6, marginTop: 10 },
+  aiChipRow: { gap: 8, paddingRight: SPACE.md },
+  aiChipWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  aiChip: { borderWidth: 1, borderColor: '#D4C99A', borderRadius: RADIUS.pill, paddingHorizontal: 13, paddingVertical: 7, backgroundColor: C.white },
+  aiChipOn: { backgroundColor: C.tintGold, borderColor: C.gold },
+  aiChipText: { fontFamily: FONT.bodySemi, fontSize: 12.5, color: C.text },
+  aiChipTextOn: { color: C.accent2 },
+  aiInput: { borderWidth: 1, borderColor: '#D4C99A', borderRadius: RADIUS.md, paddingHorizontal: 12, paddingVertical: 10, fontFamily: FONT.body, fontSize: 14, color: C.ink, backgroundColor: C.white },
+  aiBtn: { borderRadius: RADIUS.md, paddingVertical: 12, alignItems: 'center' },
+  aiBtnText: { fontFamily: FONT.bodyBold, fontSize: 14, color: C.white },
+  aiNote: { fontFamily: FONT.body, fontSize: 12.5, color: C.accent2, marginTop: 10 },
+  aiRecHead: { fontFamily: FONT.bodyBold, fontSize: 11, color: C.gold, letterSpacing: 1, marginBottom: 10 },
+  whyBox: { flexDirection: 'row', gap: 7, alignItems: 'flex-start', backgroundColor: C.tintGold, borderTopLeftRadius: RADIUS.md, borderTopRightRadius: RADIUS.md, paddingHorizontal: 12, paddingVertical: 9 },
+  whyText: { flex: 1, fontFamily: FONT.bodyMed, fontSize: 12, color: C.accent2, lineHeight: 17 },
+  aiDisclaimer: { fontFamily: FONT.body, fontSize: 11, color: C.faint, marginTop: 4 },
   search: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: C.card, borderRadius: RADIUS.md, paddingHorizontal: 14, height: 48, marginBottom: SPACE.md, borderWidth: 1, borderColor: C.borderSoft },
   searchInput: { flex: 1, fontFamily: FONT.body, fontSize: 14, color: C.ink },
   chips: { gap: 8, paddingBottom: SPACE.sm, paddingRight: SPACE.md },

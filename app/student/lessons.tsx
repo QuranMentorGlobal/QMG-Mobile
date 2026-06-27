@@ -56,7 +56,11 @@ function LessonCard({ l, joinable }: { l: FullLesson; joinable: boolean }) {
   const day = d ? d.getDate() : '–';
   const mon = d ? d.toLocaleDateString(undefined, { month: 'short' }) : '';
   const time = d ? d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }) : '';
-  const canJoin = joinable && !!l.daily_room_url;
+  const canJoin = joinable && !!l.daily_room_url && (() => {
+    if (!l.scheduled_at) return false;
+    const start = new Date(l.scheduled_at).getTime();
+    return Date.now() >= start - 15 * 60000 && Date.now() <= start + (l.duration_mins ?? 30) * 60000;
+  })();
   return (
     <View style={styles.card}>
       <View style={styles.row}>

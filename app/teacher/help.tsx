@@ -51,7 +51,7 @@ export default function TeacherHelp() {
         );
       })}
 
-      <Pressable onPress={() => Linking.openURL('https://muddarris.com/platform/help')} style={styles.webLink}>
+      <Pressable onPress={() => Linking.openURL('https://www.muddarris.com/platform/help')} style={styles.webLink}>
         <Ionicons name="globe-outline" size={16} color={C.accent2} />
         <Text style={styles.webLinkText}>Visit the full Help Center on the web</Text>
       </Pressable>

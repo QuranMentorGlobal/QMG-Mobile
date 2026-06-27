@@ -2,7 +2,7 @@
 // Teacher Profile — mirrors the web teacher/profile page: all sections, trust tiers,
 // completion, and the Category-A (instant) vs Category-B (re-verification) save flow.
 // File uploads (photo/video/ID/Ijazah) open the web for now (no native picker in this build).
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState, useEffect } from 'react';
 import { Alert, Linking, Modal, Pressable, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -11,6 +11,8 @@ import { Screen, Loading, Avatar } from '@/components/ui';
 import { useAuth } from '@/lib/auth';
 import * as DocumentPicker from 'expo-document-picker';
 import { currencyForCountry } from '@/lib/pricing/currency';
+import { AIImprove } from '@/components/AIImprove';
+import { aiStatus } from '@/lib/db';
 import { fetchTeacherProfile, saveTeacherProfile, saveNotifyPrefs, updatePassword, uploadVerificationDoc, type TeacherProfileData } from '@/lib/db';
 import { C, FONT, RADIUS, SHADOW, SPACE } from '@/lib/theme';
 import { MediaPickerButton } from '@/components/MediaPickerButton';
@@ -39,6 +41,8 @@ export function TeacherProfileScreen() {
   const [pendingSensitive, setPendingSensitive] = useState<string[]>([]);
   const [countryOpen, setCountryOpen] = useState(false);
   const [docBusy, setDocBusy] = useState<string | null>(null);
+  const [aiEnabled, setAiEnabled] = useState(false);
+  useEffect(() => { aiStatus().then(setAiEnabled); }, []);
 
   const load = useCallback(async () => {
     if (!uid) return;
@@ -143,7 +147,7 @@ export function TeacherProfileScreen() {
       <Text style={styles.h1}>My Profile</Text>
       <Text style={styles.sub}>One place to manage your public profile, credentials and trust.</Text>
 
-      <Pressable style={styles.outlineBtn} onPress={() => Linking.openURL(`https://muddarris.com/platform/teachers/${uid}`)}>
+      <Pressable style={styles.outlineBtn} onPress={() => Linking.openURL(`https://www.muddarris.com/platform/teachers/${uid}`)}>
         <Ionicons name="globe-outline" size={16} color={C.forest} />
         <Text style={styles.outlineBtnText}>View public profile</Text>
       </Pressable>
@@ -224,8 +228,10 @@ export function TeacherProfileScreen() {
       <Section icon="globe-outline" title="Public Profile">
         <Lbl>Bio</Lbl>
         <Inp value={d.bio} onChangeText={(v) => set('bio', v)} editable={!isReadOnly} multiline placeholder="Tell students about your background, qualifications and teaching style…" />
+        <AIImprove field="bio" value={d.bio} context={{ specializations: d.specializations, languages: d.languages, yearsExperience: d.yearsExp, country: d.country }} onApply={(v) => set('bio', v)} disabled={isReadOnly} enabled={aiEnabled} />
         <Lbl>Welcome message</Lbl>
         <Inp value={d.welcome} onChangeText={(v) => set('welcome', v)} editable={!isReadOnly} placeholder="A short greeting students see first" />
+        <AIImprove field="welcome" value={d.welcome} context={{ specializations: d.specializations, languages: d.languages, yearsExperience: d.yearsExp, country: d.country }} onApply={(v) => set('welcome', v)} disabled={isReadOnly} enabled={aiEnabled} />
         <Text style={styles.note}>These update instantly and stay live — no review needed.</Text>
       </Section>
 
