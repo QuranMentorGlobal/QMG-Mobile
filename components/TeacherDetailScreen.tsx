@@ -8,6 +8,7 @@ import { Screen, Loading } from '@/components/ui';
 import { Panel, EmptyCard, Initials } from '@/components/dashboard';
 import { fetchTeacherDetail, fetchTeachers, teacherName, type TeacherDetail, type PublicTeacher } from '@/lib/db';
 import { C, FONT, G, RADIUS, SHADOW, SPACE } from '@/lib/theme';
+import { Price } from '@/components/Price';
 
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 const HERO = ['#15402A', '#166534', '#3F5A1E'] as const;
@@ -69,7 +70,7 @@ export function TeacherDetailScreen({ basePath }: { basePath: string }) {
           <Text style={styles.completePct}>{completeness}%</Text>
         </View>
         <View style={styles.completeTrack}><View style={[styles.completeFill, { width: `${completeness}%` }]} /></View>
-        <Text style={styles.heroPrice}>${rate}<Text style={styles.heroPriceUnit}>/lesson</Text></Text>
+        <Text style={styles.heroPrice}><Price usd={rate} approx={false} /><Text style={styles.heroPriceUnit}>/lesson</Text></Text>
         <Pressable onPress={() => router.push(`${basePath}/${t.id}/book` as any)}>
           <LinearGradient colors={['#166534', '#C9A227']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.bookBtn}>
             <Text style={styles.bookText}>Book a Lesson →</Text>
@@ -142,7 +143,7 @@ export function TeacherDetailScreen({ basePath }: { basePath: string }) {
       <LinearGradient colors={HERO} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.cta}>
         <Text style={styles.ctaTitle}>Ready to learn?</Text>
         <Text style={styles.ctaSub}>Book your first lesson with {t.firstName}.</Text>
-        <Text style={styles.ctaTrial}>Trial from ${trial}</Text>
+        <Text style={styles.ctaTrial}>Trial from <Price usd={trial} approx={false} /></Text>
         <Text style={styles.ctaPrice}>${rate}<Text style={styles.heroPriceUnit}>/lesson</Text></Text>
         <Pressable onPress={() => router.push(`${basePath}/${t.id}/book` as any)}>
           <LinearGradient colors={['#166534', '#C9A227']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.bookBtn}>

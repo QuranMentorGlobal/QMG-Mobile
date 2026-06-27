@@ -9,6 +9,7 @@ import { Screen, Loading } from '@/components/ui';
 import { EmptyCard, Initials } from '@/components/dashboard';
 import { fetchTeachers, teacherName, type PublicTeacher } from '@/lib/db';
 import { C, FONT, RADIUS, SHADOW, SPACE } from '@/lib/theme';
+import { Price } from '@/components/Price';
 
 const CATEGORIES = ['All Teachers', 'Noorani Qaida', 'Tajweed', 'Hifz', 'Tafseer', 'Islamic Studies', 'Ijazah'];
 const PRICE_CAPS = [25, 50, 100, 200];
@@ -137,12 +138,12 @@ function TeacherCard({ t, onProfile, onCourses }: { t: PublicTeacher; onProfile:
           <View style={styles.statDivider} />
           <View style={styles.stat}><Text style={styles.statValue}>{t.total_reviews ?? 0}</Text><Text style={styles.statLabel}>Reviews</Text></View>
           <View style={styles.statDivider} />
-          <View style={styles.stat}><Text style={styles.priceValue}>${t.hourly_rate_usd ?? 0}</Text><Text style={styles.statLabel}>per hour</Text></View>
+          <View style={styles.stat}><Price usd={t.hourly_rate_usd ?? 0} approx={false} style={styles.priceValue} /><Text style={styles.statLabel}>per hour</Text></View>
         </View>
 
         <View style={styles.trialRow}>
           <Text style={styles.trialLabel}>First trial lesson</Text>
-          <Text style={styles.trialFree}>{(t.trial_rate_usd ?? 0) === 0 ? 'Free' : `$${t.trial_rate_usd}`}</Text>
+          {(t.trial_rate_usd ?? 0) === 0 ? <Text style={styles.trialFree}>Free</Text> : <Price usd={t.trial_rate_usd ?? 0} approx={false} style={styles.trialFree} />}
         </View>
 
         <View style={styles.btnRow}>

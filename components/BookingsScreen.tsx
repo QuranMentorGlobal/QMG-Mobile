@@ -23,6 +23,7 @@ import {
   type BookingRole,
 } from '@/lib/bookingActions';
 import { C, FONT, RADIUS, SHADOW, SPACE } from '@/lib/theme';
+import { Price } from '@/components/Price';
 
 type TabKey = 'all' | 'pending' | 'confirmed' | 'completed' | 'cancelled';
 const TABS: TabKey[] = ['all', 'pending', 'confirmed', 'completed', 'cancelled'];
@@ -200,7 +201,7 @@ function BookingCard({
         </View>
         <View style={{ alignItems: 'flex-end', gap: 6 }}>
           <StatusBadge status={b.status} />
-          {b.price_usd != null ? <Text style={styles.price}>${Number(b.price_usd).toFixed(0)}</Text> : null}
+          {b.price_usd != null ? <Price usd={b.price_usd} approx={false} style={styles.price} /> : null}
         </View>
       </View>
 

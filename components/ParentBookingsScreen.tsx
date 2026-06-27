@@ -17,6 +17,7 @@ import { useParentChild } from '@/lib/parentChild';
 import { fetchParentBookings, type ParentBooking } from '@/lib/parentActions';
 import { cancelBookingAsParent } from '@/lib/bookingActions';
 import { C, FONT, RADIUS, SHADOW, SPACE } from '@/lib/theme';
+import { Price } from '@/components/Price';
 
 type TabKey = 'all' | 'pending' | 'confirmed' | 'cancelled';
 const TABS: TabKey[] = ['all', 'pending', 'confirmed', 'cancelled'];
@@ -146,7 +147,7 @@ function BookingCard({ b, busy, onCancel }: { b: ParentBooking; busy: boolean; o
             </View>
           </View>
           <Text style={styles.meta}>{fmtWhen(b.start_date, b.session_time)}</Text>
-          <Text style={[styles.price, { color: free ? C.success : C.ink }]}>{free ? 'Free' : `$${Number(b.price_usd || 0).toFixed(2)}`}</Text>
+          {free ? <Text style={[styles.price, { color: C.success }]}>Free</Text> : <Price usd={b.price_usd || 0} approx={false} style={[styles.price, { color: C.ink }]} />}
         </View>
       </View>
       {canCancel ? (
