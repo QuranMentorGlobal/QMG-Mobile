@@ -1,3 +1,3 @@
-// app/parent/bookings.tsx — placeholder until the real screen ships.
-import { ComingSoon } from '@/components/ComingSoon';
-export default function Page() { return <ComingSoon eyebrow="PARENT PORTAL" title="Bookings" />; }
+// app/parent/bookings.tsx — supervisor view of all children's bookings.
+import { ParentBookingsScreen } from '@/components/ParentBookingsScreen';
+export default function Page() { return <ParentBookingsScreen />; }

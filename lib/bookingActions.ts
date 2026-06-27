@@ -139,7 +139,7 @@ export async function acceptBooking(bookingId: string): Promise<ActionResult> {
 // ── Cancel/Decline (shared) — routes through the centralized refund endpoint ─────
 async function cancelViaApi(
   bookingId: string,
-  cancelledBy: BookingRole,
+  cancelledBy: BookingRole | 'parent',
   actorId: string,
   reason: string
 ): Promise<ActionResult> {
@@ -164,6 +164,12 @@ export function declineBooking(bookingId: string, actorId: string): Promise<Acti
 
 export function cancelBookingAsStudent(bookingId: string, actorId: string): Promise<ActionResult> {
   return cancelViaApi(bookingId, 'student', actorId, 'Cancelled by student');
+}
+
+// Parent cancels a child's booking — supervisor path. Mirrors the web parent
+// bookings page, which POSTs cancelledBy:'parent' to the centralized refund route.
+export function cancelBookingAsParent(bookingId: string, actorId: string): Promise<ActionResult> {
+  return cancelViaApi(bookingId, 'parent', actorId, 'Cancelled by parent');
 }
 
 // ── Teacher: Mark a confirmed booking complete ─────────────────────────────────
