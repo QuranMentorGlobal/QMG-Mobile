@@ -1,7 +1,7 @@
 // components/SupportScreen.tsx — shared support (tickets + create) for any role.
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { Screen, Loading, PageTitle, Field, Button, StatusBadge } from '@/components/ui';
@@ -16,6 +16,7 @@ const PRIORITIES = ['low', 'normal', 'high'];
 export function SupportScreen() {
   const { session, profile } = useAuth();
   const role = (profile?.role as string) || 'student';
+  const router = useRouter();
   const [aiEnabled, setAiEnabled] = useState(false);
   const [prefill, setPrefill] = useState('');
   useEffect(() => { aiStatus().then(setAiEnabled); }, []);
@@ -36,7 +37,16 @@ export function SupportScreen() {
     <Screen>
       <PageTitle title="Support" subtitle="Get help from our team" />
 
-      <SupportAssistant role={role} enabled={aiEnabled} onEscalate={(question) => { setPrefill(question); setOpen(true); }} />
+      <Pressable onPress={() => router.push(`/${role}/help-center` as any)} style={styles.helpLink}>
+        <View style={styles.helpIcon}><Ionicons name="book-outline" size={18} color={C.forest} /></View>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.helpTitle}>Browse the Help Center</Text>
+          <Text style={styles.helpSub}>Step-by-step guides and answers for common questions.</Text>
+        </View>
+        <Ionicons name="chevron-forward" size={18} color={C.faint} />
+      </Pressable>
+
+      <SupportAssistant role={role} enabled={aiEnabled} onOpenArticle={(slug) => router.push(`/${role}/help-center?slug=${slug}` as any)} onEscalate={(question) => { setPrefill(question); setOpen(true); }} />
 
       <Pressable onPress={() => setOpen(true)}>
         <LinearGradient colors={G.primary} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.newBtn}>
@@ -70,10 +80,11 @@ export function SupportScreen() {
   );
 }
 
-function SupportAssistant({ role, enabled, onEscalate }: { role: string; enabled: boolean; onEscalate: (q: string) => void }) {
+function SupportAssistant({ role, enabled, onEscalate, onOpenArticle }: { role: string; enabled: boolean; onEscalate: (q: string) => void; onOpenArticle: (slug: string) => void }) {
   const [q, setQ] = useState('');
   const [loading, setLoading] = useState(false);
   const [answer, setAnswer] = useState<string | null>(null);
+  const [sources, setSources] = useState<{ title: string; slug: string }[]>([]);
   const [asked, setAsked] = useState(false);
   if (!enabled) return null;
   async function ask() {
@@ -81,6 +92,7 @@ function SupportAssistant({ role, enabled, onEscalate }: { role: string; enabled
     setLoading(true); setAnswer(null); setAsked(true);
     const r = await aiSupportAssistant(q, role);
     setAnswer(r.answer);
+    setSources((r.sources as any) || []);
     setLoading(false);
   }
   return (
@@ -103,6 +115,16 @@ function SupportAssistant({ role, enabled, onEscalate }: { role: string; enabled
       {answer && (
         <View style={styles.asstAnswer}>
           <Text style={styles.asstAnswerText}>{answer}</Text>
+          {sources.length > 0 && (
+            <View style={styles.sourceWrap}>
+              {sources.map((s) => (
+                <Pressable key={s.slug} onPress={() => onOpenArticle(s.slug)} style={styles.sourceChip}>
+                  <Ionicons name="book-outline" size={12} color={C.accent2} />
+                  <Text style={styles.sourceText} numberOfLines={1}>{s.title}</Text>
+                </Pressable>
+              ))}
+            </View>
+          )}
           <View style={styles.asstActions}>
             <Pressable onPress={() => { setAnswer(null); setQ(''); setAsked(false); }} style={styles.solved}><Text style={styles.solvedText}>This solved it</Text></Pressable>
             <Pressable onPress={() => onEscalate(q)} style={styles.escalate}><Text style={styles.escalateText}>Still need help — create a ticket</Text></Pressable>
@@ -181,6 +203,13 @@ function NewTicketSheet({ open, onClose, onCreated, uid, initialMessage }: { ope
 const styles = StyleSheet.create({
   newBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderRadius: RADIUS.md, paddingVertical: 14, ...SHADOW.card },
   newBtnText: { color: C.white, fontFamily: FONT.bodyBold, fontSize: 15 },
+  helpLink: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: C.card, borderRadius: RADIUS.lg, padding: SPACE.md, marginBottom: SPACE.md, ...SHADOW.card },
+  helpIcon: { width: 36, height: 36, borderRadius: RADIUS.md, backgroundColor: C.tintGreen, alignItems: 'center', justifyContent: 'center' },
+  helpTitle: { fontFamily: FONT.bodyBold, fontSize: 14, color: C.ink },
+  helpSub: { fontFamily: FONT.body, fontSize: 12, color: C.muted, marginTop: 2, lineHeight: 17 },
+  sourceWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 10 },
+  sourceChip: { flexDirection: 'row', alignItems: 'center', gap: 5, maxWidth: '100%', backgroundColor: C.white, borderWidth: 1, borderColor: 'rgba(201,162,39,0.2)', borderRadius: RADIUS.sm, paddingHorizontal: 9, paddingVertical: 5 },
+  sourceText: { fontFamily: FONT.bodySemi, fontSize: 12, color: C.accent2, flexShrink: 1 },
   asstCard: { backgroundColor: C.white, borderWidth: 1, borderColor: 'rgba(201,162,39,0.18)', borderRadius: RADIUS.lg, padding: SPACE.md, marginBottom: SPACE.md, ...SHADOW.card },
   asstHead: { flexDirection: 'row', gap: 10, marginBottom: SPACE.md },
   asstIcon: { width: 32, height: 32, borderRadius: RADIUS.md, backgroundColor: C.tintGold, alignItems: 'center', justifyContent: 'center' },

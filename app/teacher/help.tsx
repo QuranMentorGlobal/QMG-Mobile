@@ -1,6 +1,6 @@
 // app/teacher/help.tsx — teacher Help Center (FAQ + quick links).
 import { useState } from 'react';
-import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Screen, PageTitle } from '@/components/ui';
@@ -51,9 +51,9 @@ export default function TeacherHelp() {
         );
       })}
 
-      <Pressable onPress={() => Linking.openURL('https://www.muddarris.com/platform/help')} style={styles.webLink}>
+      <Pressable onPress={() => router.push('/teacher/help-center' as any)} style={styles.webLink}>
         <Ionicons name="globe-outline" size={16} color={C.accent2} />
-        <Text style={styles.webLinkText}>Visit the full Help Center on the web</Text>
+        <Text style={styles.webLinkText}>Browse all help articles</Text>
       </Pressable>
     </Screen>
   );

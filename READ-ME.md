@@ -1,29 +1,25 @@
-# AI features + www domain fix (upload all)
+# Help Center (gap #5) — browsable articles on mobile
 
-You hadn't applied the AI batch yet, so this package contains BOTH the AI features
-and the domain fix in one go. Upload all 10 files. JS-only — ships over OTA.
+Web had a full Help Center (articles + categories); mobile had only the ticket form.
+This ports it. JS-only — ships over OTA. Run `npx tsc --noEmit` first.
 
-## Critical: domain switched to www.muddarris.com
-Your API and site live on `www.muddarris.com`; the no-www apex (`muddarris.com`) is
-parked at Hostinger. Every `https://muddarris.com` reference (API + links + banner
-images) was hitting the parking page. All are now `https://www.muddarris.com`:
-- `lib/db.ts` — API_BASE (fixes ALL backend calls: AI, payments, checkout-quote, eligibility)
-- `components/dashboard.tsx` — dashboard banner image URLs
-- `components/TeacherProfileScreen.tsx` — public-profile preview link
-- `app/teacher/help.tsx`, `courses.tsx`, `earnings.tsx` — web links
+## New
+- `lib/help/content.ts` — the shared knowledge base, copied VERBATIM from web
+  (single source of truth: ROLE_HUBS, CATEGORIES, ~25 ARTICLES/role, search helpers).
+  When you update help content on web, re-copy this one file to keep them identical.
+- `components/HelpCenter.tsx` — the browser: search, popular, categories, and full
+  article view (overview, numbered steps, FAQs, troubleshooting, related links).
+- `app/{student,teacher,parent}/help-center.tsx` — role routes. Accept a `?slug=`
+  param to deep-link an article.
 
-This reverses the earlier "no-www canonical" rule, but it has to match where your
-API actually lives. Long-term fix: point the apex `muddarris.com` DNS at your app
-host (same target as `www`) and remove Hostinger parking — then you could move back
-to no-www if you want.
+## Changed
+- `components/SupportScreen.tsx` — adds a "Browse the Help Center" entry, and
+  RESTORES the AI support-assistant source links (each answer now links to the
+  article it came from, opening it in the native Help Center).
+  **Supersedes the SupportScreen.tsx in the ai-and-www-fix batch.**
+- `app/teacher/help.tsx` — "Browse all help articles" now opens the native Help
+  Center instead of the external website.
 
-## AI features (now functional — /api/ai/* on Groq, gated by /api/ai/status)
-- `components/TeachersScreen.tsx` — "Find my best match" questionnaire → recommend-teachers
-- `components/AIImprove.tsx` (NEW) + `TeacherProfileScreen.tsx` — Bio/Welcome "Improve with AI"
-- `components/SupportScreen.tsx` — "Get an instant answer" support assistant
-- `lib/db.ts` — aiStatus / aiRecommendTeachers / aiImproveText / aiSupportAssistant helpers
-
-## Also in this batch
-- `app/student/lessons.tsx` — 15-minute join gate (matches teacher/parent + web)
-
-Run `npx tsc --noEmit` before deploying.
+## Note
+This matches web behavior. The article `icon` keys in content.ts reference web's
+icon set and are simply ignored on mobile (cosmetic) — no mapping needed.
