@@ -810,6 +810,23 @@ export async function countUnreadNotifications(uid: string): Promise<number> {
   }, 0);
 }
 
+export interface CheckoutQuote { mode: 'local' | 'international'; effectiveUsd: number; studentCurrency: string; amountLocal: number; }
+
+// Server-authoritative price quote for a booking (same resolver the payment routes
+// use, so the displayed amount equals what's charged). Lets the checkout show the
+// truthful local amount to eligible students. Mirrors the web checkout page.
+export async function fetchCheckoutQuote(bookingId: string): Promise<CheckoutQuote | null> {
+  try {
+    const res = await fetch(`${API_BASE}/api/pricing/checkout-quote`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ bookingId }),
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok || !json?.quote) return null;
+    return json.quote as CheckoutQuote;
+  } catch { return null; }
+}
+
 export async function walletInitiate(args: { bookingId: string; provider: 'jazzcash' | 'easypaisa'; amount: number; walletNumber: string }): Promise<{ ok: boolean; error?: string }> {
   try {
     const res = await fetch(`${API_BASE}/api/payments/wallet/initiate`, {
