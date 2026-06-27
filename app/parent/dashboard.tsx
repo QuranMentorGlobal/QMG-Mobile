@@ -5,6 +5,7 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import { formatMoneySync as money, useDisplayCurrency } from '@/lib/pricing/useDisplayCurrency';
 import { Ionicons } from '@expo/vector-icons';
 import { Screen, Loading } from '@/components/ui';
+import { LocationGateBanner } from '@/components/LocationGateBanner';
 import {
   BannerSlider, StatGrid, StatTile, Panel, PanelHeader, BarsChart, RadialMini,
   SectionHeader, QuickActionGrid, QuickAction, EmptyCard, QuoteCard, BadgeStrip, Initials,
@@ -33,6 +34,7 @@ export default function ParentDashboard() {
 
   return (
     <Screen>
+      <LocationGateBanner profileHref="/parent/profile" />
       <BannerSlider role="parent" />
 
       <StatGrid>

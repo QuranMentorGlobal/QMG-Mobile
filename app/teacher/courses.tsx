@@ -19,7 +19,7 @@ import {
 } from '@/lib/coursesActions';
 import { C, FONT, RADIUS, SHADOW, SPACE } from '@/lib/theme';
 
-const WEB = 'https://www.muddarris.com/platform/teacher/course-studio';
+const WEB = 'https://muddarris.com/platform/teacher/course-studio';
 
 type TabKey = 'trial' | 'recorded' | 'live' | 'program' | 'completed';
 type CompletedFilter = 'all' | 'trial' | 'recorded' | 'live' | 'long';

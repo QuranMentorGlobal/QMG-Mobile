@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { formatMoneySync as money, useDisplayCurrency } from '@/lib/pricing/useDisplayCurrency';
 import { Screen, Loading } from '@/components/ui';
+import { LocationGateBanner } from '@/components/LocationGateBanner';
 import {
   BannerSlider, StatGrid, StatTile, Panel, PanelHeader, BarsChart,
   SectionHeader, QuickActionGrid, QuickAction, EmptyCard, QuoteCard, BadgeStrip, RadialMini,
@@ -33,6 +34,7 @@ export default function TeacherDashboard() {
 
   return (
     <Screen>
+      <LocationGateBanner profileHref="/teacher/profile" />
       <BannerSlider role="teacher" />
 
       <StatGrid>

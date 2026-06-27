@@ -48,7 +48,7 @@ export function ProfileScreen() {
       </View>
 
       <Text style={styles.note}>
-        Account changes and verification are managed on quranmentorglobal.com. This is the testing build.
+        Account changes and verification are managed on muddarris.com. This is the testing build.
       </Text>
     </Screen>
   );

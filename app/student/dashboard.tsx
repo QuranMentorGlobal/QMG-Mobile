@@ -3,6 +3,7 @@ import { useCallback, useState } from 'react';
 import { Image, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Screen, Loading } from '@/components/ui';
+import { LocationGateBanner } from '@/components/LocationGateBanner';
 import {
   BannerSlider, StatGrid, StatTile, BadgeStrip, Panel, PanelHeader, BarsChart, LevelRow,
   SectionHeader, QuickActionGrid, QuickAction, GoalRow, EmptyCard, QuoteCard, Initials,
@@ -32,6 +33,7 @@ export default function StudentDashboard() {
 
   return (
     <Screen>
+      <LocationGateBanner profileHref="/student/profile" />
       <BannerSlider role="student" />
 
       <StatGrid>

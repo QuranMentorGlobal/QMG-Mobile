@@ -19,7 +19,7 @@ import {
 } from '@/lib/earningsActions';
 import { C, FONT, RADIUS, SHADOW, SPACE } from '@/lib/theme';
 
-const PAYOUT_SETTINGS_URL = 'https://www.muddarris.com/platform/teacher/payout-settings';
+const PAYOUT_SETTINGS_URL = 'https://muddarris.com/platform/teacher/payout-settings';
 import { formatMoneySync as money, useDisplayCurrency } from '@/lib/pricing/useDisplayCurrency';
 const fmtDate = (s: string) => new Date(s).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 
