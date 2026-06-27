@@ -8,23 +8,19 @@
 // here: it reuses fetchStudentAttendance(childId) directly (queries by student_id).
 
 import { supabase } from '@/lib/supabase';
+import { fetchChildren } from '@/lib/db';
 
 /* ── shared: resolve the parent's children (id → name) ───────────────────────── */
 export interface ParentChildLite { id: string; name: string }
 
 async function loadChildren(uid: string): Promise<{ ids: string[]; nameById: Record<string, string> }> {
-  const sb = supabase as any;
-  const { data: links } = await sb
-    .from('parent_children')
-    .select('child_id, profiles!parent_children_child_id_fkey(id, first_name, last_name)')
-    .eq('parent_id', uid);
+  const kids = await fetchChildren(uid);
   const ids: string[] = [];
   const nameById: Record<string, string> = {};
-  ((links as any[]) || []).forEach((l) => {
-    const id = l.profiles?.id || l.child_id;
-    if (!id) return;
-    ids.push(id);
-    nameById[id] = `${l.profiles?.first_name || ''} ${l.profiles?.last_name || ''}`.trim() || 'Child';
+  kids.forEach((c) => {
+    if (!c.id) return;
+    ids.push(c.id);
+    nameById[c.id] = `${c.first_name || ''} ${c.last_name || ''}`.trim() || 'Child';
   });
   return { ids, nameById };
 }

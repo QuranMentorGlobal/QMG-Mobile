@@ -7,7 +7,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { supabase } from '@/lib/supabase';
+import { fetchChildren } from '@/lib/db';
 import { useAuth } from '@/lib/auth';
 
 export interface ChildOption {
@@ -44,15 +44,12 @@ export function ParentChildProvider({ children: node }: { children: ReactNode })
     }
     setLoading(true);
     try {
-      const { data: links } = await (supabase as any)
-        .from('parent_children')
-        .select('child_id, profiles!parent_children_child_id_fkey(id, first_name, last_name, avatar_url)')
-        .eq('parent_id', uid);
-      const list: ChildOption[] = ((links as any[]) || [])
-        .map((l) => ({
-          id: l.profiles?.id || l.child_id,
-          name: `${l.profiles?.first_name || ''} ${l.profiles?.last_name || ''}`.trim() || 'Child',
-          avatar: l.profiles?.avatar_url ?? null,
+      const kids = await fetchChildren(uid);
+      const list: ChildOption[] = kids
+        .map((c) => ({
+          id: c.id,
+          name: `${c.first_name || ''} ${c.last_name || ''}`.trim() || 'Child',
+          avatar: c.avatar_url ?? null,
         }))
         .filter((c) => c.id);
       setKids(list);
