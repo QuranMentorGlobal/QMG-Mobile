@@ -18,6 +18,7 @@ import type { Role } from '@/lib/supabase';
 import { navForRole, PORTAL_LABEL } from '@/lib/nav';
 import { Loading } from '@/components/ui';
 import { C, FONT, G, RADIUS, SPACE } from '@/lib/theme';
+import { TimezoneDetector } from '@/components/TimezoneDetector';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 const PANEL_W = Math.min(330, SCREEN_W * 0.82);
@@ -76,6 +77,7 @@ export function RoleShell({ role, children }: { role: Role; children: React.Reac
       <View style={{ flex: 1 }}>{children}</View>
 
       <DrawerMenu role={role} open={open} onClose={() => setOpen(false)} />
+      <TimezoneDetector />
     </View>
   );
 }

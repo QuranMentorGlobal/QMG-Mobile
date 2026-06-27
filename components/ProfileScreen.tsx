@@ -4,6 +4,7 @@
 import { Alert, StyleSheet, Text, View } from 'react-native';
 import { Avatar, Button, Card, Screen, SectionTitle } from '@/components/ui';
 import { useAuth } from '@/lib/auth';
+import { NotificationPrefs } from '@/components/NotificationPrefs';
 import { C, FONT, SPACE } from '@/lib/theme';
 
 const ROLE_LABEL: Record<string, string> = {
@@ -41,6 +42,11 @@ export function ProfileScreen() {
         <Detail label="Email" value={profile?.email ?? '—'} />
         <Detail label="Country" value={profile?.country ?? '—'} />
         <Detail label="Role" value={ROLE_LABEL[profile?.role ?? 'student']} last />
+      </Card>
+
+      <SectionTitle>Notifications</SectionTitle>
+      <Card>
+        <NotificationPrefs />
       </Card>
 
       <View style={{ marginTop: SPACE.lg }}>
