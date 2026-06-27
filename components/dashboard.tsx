@@ -93,11 +93,18 @@ export function BannerSlider({ role }: { role: BannerRole }) {
   useEffect(() => { setImgError(false); }, [current]);
 
   const slide = list[current];
+  const [aspect, setAspect] = useState(1080 / 420); // sensible hero ratio until measured
   // Prefer the full web image (identical to the website); fall back to the bundled
   // photo only if the network image fails to load.
   const webUrl = `https://muddarris.com/banners/${role}-${current + 1}.png`;
+  // Size the banner to the image's real shape so it shows fully (no crop, no bands).
+  useEffect(() => {
+    let alive = true;
+    Image.getSize(webUrl, (w, h) => { if (alive && w && h) setAspect(w / h); }, () => {});
+    return () => { alive = false; };
+  }, [webUrl]);
   return (
-    <View style={styles.banner}>
+    <View style={[styles.banner, { aspectRatio: aspect }]}>
       {/* charcoal -> forest -> gold fallback shows if the image is slow/unavailable */}
       <LinearGradient colors={G.signature} locations={G.signatureLocations} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
       <Image
@@ -106,9 +113,9 @@ export function BannerSlider({ role }: { role: BannerRole }) {
         resizeMode="cover"
         onError={() => setImgError(true)}
       />
-      {/* lighter left wash — keeps text readable while letting the photo show through */}
+      {/* very light left wash — only enough to keep the text readable */}
       <LinearGradient
-        colors={['rgba(17,17,17,0.62)', 'rgba(17,17,17,0.28)', 'rgba(17,17,17,0.02)']}
+        colors={['rgba(17,17,17,0.55)', 'rgba(17,17,17,0.18)', 'rgba(17,17,17,0)']}
         locations={[0, 0.5, 1]}
         start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
         style={StyleSheet.absoluteFill}
@@ -316,7 +323,7 @@ export function Initials({ name, size = 44 }: { name: string; size?: number }) {
 }
 
 const styles = StyleSheet.create({
-  banner: { height: 184, borderRadius: RADIUS.xl, overflow: 'hidden', marginBottom: SPACE.lg, ...SHADOW.lg },
+  banner: { width: '100%', borderRadius: RADIUS.xl, overflow: 'hidden', marginBottom: SPACE.lg, backgroundColor: C.forestDeep, ...SHADOW.lg },
   bannerText: { position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, justifyContent: 'center', alignItems: 'flex-start', paddingHorizontal: SPACE.lg },
   bannerEyebrow: { color: '#E3C04A', fontFamily: FONT.bodySemi, fontSize: 10, letterSpacing: 1.3, marginBottom: 3, textAlign: 'left' },
   bannerHeadline: { color: '#FFFFFF', fontFamily: FONT.displayBold, fontSize: 19, lineHeight: 23, textAlign: 'left' },
