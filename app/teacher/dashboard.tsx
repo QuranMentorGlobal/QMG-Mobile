@@ -3,6 +3,7 @@ import { useCallback, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
+import { formatMoneySync as money, useDisplayCurrency } from '@/lib/pricing/useDisplayCurrency';
 import { Screen, Loading } from '@/components/ui';
 import {
   BannerSlider, StatGrid, StatTile, Panel, PanelHeader, BarsChart,
@@ -14,6 +15,7 @@ import { C, FONT, RADIUS, SHADOW, SPACE } from '@/lib/theme';
 
 export default function TeacherDashboard() {
   const { session } = useAuth();
+  useDisplayCurrency(); // subscribe so prices re-render once the viewer's currency resolves
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [d, setD] = useState<TeacherDashFull | null>(null);
@@ -36,7 +38,7 @@ export default function TeacherDashboard() {
       <StatGrid>
         <StatTile icon="people-outline" tone="green" value={d.totalStudents} label="Total Students" />
         <StatTile icon="book-outline" tone="gold" value={d.todayLessons} label="Today's Lessons" />
-        <StatTile icon="cash-outline" tone="green" value={`$${d.monthlyEarnings.toFixed(2)}`} label="This Month" />
+        <StatTile icon="cash-outline" tone="green" value={money(d.monthlyEarnings)} label="This Month" />
         <StatTile icon="calendar-outline" tone="indigo" value={d.pending} label="Pending Requests" />
       </StatGrid>
 
@@ -64,7 +66,7 @@ export default function TeacherDashboard() {
         <View style={styles.miniGrid}>
           <Mini icon="time-outline" label="Teaching Hours" value={`${d.teachingHours}h`} />
           <Mini icon="swap-horizontal-outline" label="Trial Conversions" value={`${d.convertedTrials}/${d.trialBookings}`} />
-          <Mini icon="card-outline" label="Pending Payout" value={`$${d.pendingPayout.toFixed(2)}`} color={C.gold} />
+          <Mini icon="card-outline" label="Pending Payout" value={money(d.pendingPayout)} color={C.gold} />
           <Mini icon="star-outline" label="Avg Rating" value={d.avgRating > 0 ? d.avgRating.toFixed(1) : '—'} color="#F59E0B" />
         </View>
       </Panel>

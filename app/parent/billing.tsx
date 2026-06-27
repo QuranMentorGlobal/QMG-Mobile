@@ -10,11 +10,12 @@ import { useAuth } from '@/lib/auth';
 import { fetchParentBilling, type ParentPayment, type ParentRefund } from '@/lib/db';
 import { C, FONT, G, RADIUS, SHADOW, SPACE } from '@/lib/theme';
 
-const money = (n: number) => `$${(n ?? 0).toFixed(2)}`;
+import { formatMoneySync as money, useDisplayCurrency } from '@/lib/pricing/useDisplayCurrency';
 const date = (s: string) => new Date(s).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
 
 export default function ParentBilling() {
   const { session } = useAuth();
+  useDisplayCurrency(); // subscribe so prices re-render once the viewer's currency resolves
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<{ payments: ParentPayment[]; refunds: ParentRefund[]; total: number; refunded: number } | null>(null);
 

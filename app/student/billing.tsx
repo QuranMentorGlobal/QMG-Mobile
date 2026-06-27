@@ -12,7 +12,7 @@ import { useAuth } from '@/lib/auth';
 import { fetchStudentBilling, type BillingData } from '@/lib/billingActions';
 import { C, FONT, RADIUS, SHADOW, SPACE } from '@/lib/theme';
 
-const money = (n: number) => `$${(n ?? 0).toFixed(2)}`;
+import { formatMoneySync as money, useDisplayCurrency } from '@/lib/pricing/useDisplayCurrency';
 const fmt = (s?: string | null) => (s ? new Date(s).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '—');
 const TABS = [
   { key: 'overview', label: 'Overview', icon: 'grid-outline' as const },
@@ -24,6 +24,7 @@ const TABS = [
 
 export default function StudentBilling() {
   const { session } = useAuth();
+  useDisplayCurrency(); // subscribe so prices re-render once the viewer's currency resolves
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [d, setD] = useState<BillingData | null>(null);

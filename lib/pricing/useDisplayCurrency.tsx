@@ -61,6 +61,18 @@ function load(): Promise<Ctx> {
 /** Force a refresh (e.g. after the user changes their country in Profile). */
 export function resetDisplayCurrency() { _cache = null; _inflight = null; }
 
+// Synchronous formatter for string contexts in components that can't easily call a
+// hook in every sub-component (billing/earnings rows). Reads the shared module
+// cache: returns USD until the currency resolves, then the localized value. The
+// screen's top-level component should call useDisplayCurrency() once so it
+// re-renders (re-running its children) when the currency becomes ready.
+export function formatMoneySync(usd: number | null | undefined): string {
+  const n = Number(usd) || 0;
+  const c = _cache;
+  if (!c || c.currency === 'usd') return formatCurrency(n, 'usd');
+  return formatCurrency(n * c.rate, c.currency);
+}
+
 export function useDisplayCurrency() {
   const [ctx, setCtx] = useState<Ctx | null>(_cache);
   useEffect(() => {
@@ -77,4 +89,12 @@ export function useDisplayCurrency() {
     return formatCurrency(local, currency);
   }
   return { currency, rate, ready, country: ctx?.country || null, format };
+}
+
+// Convenience for string contexts (stat tiles, KPI values, billing rows) that
+// can't render a <Price> component. Returns money(usd) → localized string. Shares
+// the same module cache, so it re-renders the caller once the currency resolves.
+export function useMoney(): (usd: number | null | undefined) => string {
+  const { format } = useDisplayCurrency();
+  return (usd) => format(Number(usd) || 0);
 }

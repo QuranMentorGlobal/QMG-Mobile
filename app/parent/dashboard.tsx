@@ -2,6 +2,7 @@
 import { useCallback, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
+import { formatMoneySync as money, useDisplayCurrency } from '@/lib/pricing/useDisplayCurrency';
 import { Ionicons } from '@expo/vector-icons';
 import { Screen, Loading } from '@/components/ui';
 import {
@@ -14,6 +15,7 @@ import { C, FONT, RADIUS, SHADOW, SPACE } from '@/lib/theme';
 
 export default function ParentDashboard() {
   const { session } = useAuth();
+  useDisplayCurrency(); // subscribe so prices re-render once the viewer's currency resolves
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [d, setD] = useState<ParentDash | null>(null);
@@ -36,7 +38,7 @@ export default function ParentDashboard() {
       <StatGrid>
         <StatTile icon="people-outline" value={d.children.length} label="Children Enrolled" tone="green" />
         <StatTile icon="book-outline" value={d.lessonsThisMonth} label="Lessons This Month" tone="gold" />
-        <StatTile icon="card-outline" value={`$${d.spentThisMonth.toFixed(2)}`} label="Spent This Month" tone="green" />
+        <StatTile icon="card-outline" value={money(d.spentThisMonth)} label="Spent This Month" tone="green" />
         <StatTile icon="time-outline" value="—" label="Next Lesson In" tone="indigo" />
       </StatGrid>
 

@@ -11,6 +11,7 @@ import { EmptyCard, Initials } from '@/components/dashboard';
 import { useAuth } from '@/lib/auth';
 import { fetchTeacherDetail, fetchBookingCourses, fetchChildren, createBooking, enrollFreeCourse, purchaseRecordedCourse, fetchSubscriptionTiers, subscribeToCourse, type TeacherDetail, type BookingCourse, type Child, type SubTier } from '@/lib/db';
 import { C, FONT, G, RADIUS, SHADOW, SPACE } from '@/lib/theme';
+import { formatMoneySync as money, useDisplayCurrency } from '@/lib/pricing/useDisplayCurrency';
 
 type Tab = 'trial' | 'recorded' | 'live' | 'program';
 const TABS: { key: Tab; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
@@ -33,6 +34,7 @@ function timeSlots() {
 }
 
 export function BookingScreen({ basePath, checkoutPath, bookingsPath }: { basePath: string; checkoutPath: string; bookingsPath: string }) {
+  useDisplayCurrency(); // subscribe so prices re-render once currency resolves
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { session, role } = useAuth();
@@ -206,7 +208,7 @@ export function BookingScreen({ basePath, checkoutPath, bookingsPath }: { basePa
                       <Text style={styles.className}>{c.title}</Text>
                       <Text style={styles.classMeta}>{c.category ?? 'Trial'} · {c.duration_mins} min</Text>
                     </View>
-                    <Text style={styles.classPrice}>{c.price_usd === 0 ? 'Free' : `$${c.price_usd}`}</Text>
+                    <Text style={styles.classPrice}>{c.price_usd === 0 ? 'Free' : money(c.price_usd)}</Text>
                   </Pressable>
                 );
               })}
@@ -256,7 +258,7 @@ export function BookingScreen({ basePath, checkoutPath, bookingsPath }: { basePa
                 <Row k="Duration" v={`${trialCourse.duration_mins} min`} />
                 <Row k="When" v={date && time ? `${date.toLocaleDateString(undefined, { day: 'numeric', month: 'short' })} · ${time}` : '—'} />
                 <View style={styles.summaryDivider} />
-                <View style={styles.summaryRow}><Text style={styles.totalK}>Total</Text><Text style={styles.totalV}>{trialCourse.price_usd === 0 ? 'Free' : `$${trialCourse.price_usd}`}</Text></View>
+                <View style={styles.summaryRow}><Text style={styles.totalK}>Total</Text><Text style={styles.totalV}>{trialCourse.price_usd === 0 ? 'Free' : money(trialCourse.price_usd)}</Text></View>
               </View>
             ) : null}
           </>
@@ -291,7 +293,7 @@ function CourseList({ list, kind, onPurchase }: { list: BookingCourse[]; kind: T
             {c.description ? <Text style={styles.courseDesc} numberOfLines={2}>{c.description}</Text> : null}
             <Text style={styles.courseMeta}>All levels · {c.lessons} lesson{c.lessons === 1 ? '' : 's'}</Text>
             <View style={styles.courseFooter}>
-              <Text style={styles.coursePrice}>{c.is_free ? 'Free' : `$${c.price_usd}`}</Text>
+              <Text style={styles.coursePrice}>{c.is_free ? 'Free' : money(c.price_usd)}</Text>
               <Pressable onPress={() => onPurchase(c)} style={styles.purchaseBtn}><Text style={styles.purchaseText}>{kind === 'recorded' ? (c.is_free ? 'Enrol Free' : 'Purchase') : 'View Plans'}</Text></Pressable>
             </View>
           </View>
@@ -332,11 +334,11 @@ function SubscriptionView({ course, tiers, selected, busy, onSelect, onConfirm, 
               {popular ? <View style={styles.popularPill}><Text style={styles.popularText}>POPULAR</Text></View> : null}
             </View>
             <Text style={styles.tierLessons}>{t.lessonsTotal} lessons over {t.months} month{t.months === 1 ? '' : 's'}</Text>
-            <Text style={styles.tierPrice}>${t.price}</Text>
+            <Text style={styles.tierPrice}>{money(t.price)}</Text>
             {t.months > 1 ? (
               <>
-                <Text style={styles.tierMonthly}>${t.monthlyPrice}/month · {t.months} months</Text>
-                <Text style={styles.tierSave}>Save ${t.saving} vs monthly</Text>
+                <Text style={styles.tierMonthly}>{money(t.monthlyPrice)}/month · {t.months} months</Text>
+                <Text style={styles.tierSave}>Save {money(t.saving)} vs monthly</Text>
               </>
             ) : null}
           </Pressable>

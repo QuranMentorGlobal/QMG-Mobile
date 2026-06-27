@@ -10,6 +10,7 @@ import { Screen, Loading } from '@/components/ui';
 import { useAuth } from '@/lib/auth';
 import { processCardPayment, walletInitiate } from '@/lib/db';
 import { C, FONT, G, RADIUS, SHADOW, SPACE } from '@/lib/theme';
+import { Price } from '@/components/Price';
 
 type Method = 'card' | 'jazzcash' | 'easypaisa' | 'bank';
 const METHODS: { key: Method; label: string; desc: string; icon: keyof typeof Ionicons.glyphMap; manual?: boolean }[] = [
@@ -265,8 +266,8 @@ export function CheckoutScreen({ bookingsPath }: { bookingsPath: string }) {
             <View style={styles.freeTrial}><Text style={styles.freeTrialText}>{badgeText}</Text></View>
           </View>
         </View>
-        <View style={styles.summaryRow}><Text style={styles.rowK}>Subtotal</Text><Text style={styles.rowV}>${amount.toFixed(2)}</Text></View>
-        <View style={styles.summaryRow}><Text style={styles.totalK}>Total</Text><Text style={styles.totalV}>${amount.toFixed(2)}</Text></View>
+        <View style={styles.summaryRow}><Text style={styles.rowK}>Subtotal</Text><Price usd={amount} style={styles.rowV} /></View>
+        <View style={styles.summaryRow}><Text style={styles.totalK}>Total</Text><Price usd={amount} style={styles.totalV} /></View>
         <View style={styles.included}>
           <Text style={styles.includedTitle}>What's included:</Text>
           {(isCourse
