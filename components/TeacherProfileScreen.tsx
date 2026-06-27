@@ -10,6 +10,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Screen, Loading, Avatar } from '@/components/ui';
 import { useAuth } from '@/lib/auth';
 import * as DocumentPicker from 'expo-document-picker';
+import { currencyForCountry } from '@/lib/pricing/currency';
 import { fetchTeacherProfile, saveTeacherProfile, saveNotifyPrefs, updatePassword, uploadVerificationDoc, type TeacherProfileData } from '@/lib/db';
 import { C, FONT, RADIUS, SHADOW, SPACE } from '@/lib/theme';
 import { MediaPickerButton } from '@/components/MediaPickerButton';
@@ -50,6 +51,7 @@ export function TeacherProfileScreen() {
         idDocUrl: data.idDocUrl, ijazahDocUrl: data.ijazahDocUrl, yearsExp: data.yearsExp,
         specializations: data.specializations, languages: data.languages, availableDays: data.availableDays,
         hourlyRate: data.hourlyRate, trialRate: data.trialRate,
+        allowLocalPricing: data.allowLocalPricing, localHourlyRate: data.localHourlyRate, localTrialRate: data.localTrialRate,
       });
     }
     setLoading(false);
@@ -97,7 +99,7 @@ export function TeacherProfileScreen() {
   }
   function anyChange(): boolean {
     if (!d) return false;
-    const keys = [...SENSITIVE_KEYS, 'bio', 'welcome', 'hourlyRate', 'trialRate', 'availableDays'];
+    const keys = [...SENSITIVE_KEYS, 'bio', 'welcome', 'hourlyRate', 'trialRate', 'availableDays', 'allowLocalPricing', 'localHourlyRate', 'localTrialRate'];
     return keys.some((k) => arr((d as any)[k]) !== arr(orig[k]));
   }
 
@@ -117,13 +119,16 @@ export function TeacherProfileScreen() {
       firstName: d.firstName, lastName: d.lastName, gender: d.gender, country: d.country, phone: d.phone,
       bio: d.bio, welcome: d.welcome, photoUrl: d.photoUrl, yearsExp: d.yearsExp,
       specializations: d.specializations, languages: d.languages, availableDays: d.availableDays,
-      hourlyRate: d.hourlyRate, trialRate: d.trialRate, videoUrl: d.videoUrl, idDocUrl: d.idDocUrl, ijazahDocUrl: d.ijazahDocUrl,
+      hourlyRate: d.hourlyRate, trialRate: d.trialRate,
+      allowLocalPricing: d.allowLocalPricing, localHourlyRate: d.localHourlyRate, localTrialRate: d.localTrialRate, localCurrency: currencyForCountry(d.country),
+      videoUrl: d.videoUrl, idDocUrl: d.idDocUrl, ijazahDocUrl: d.ijazahDocUrl,
     });
     setSaving(false);
     if (!res.ok) { Alert.alert('Could not save', res.error ?? ''); return; }
     setOrig({ firstName: d.firstName, lastName: d.lastName, phone: d.phone, country: d.country, bio: d.bio, welcome: d.welcome,
       photoUrl: d.photoUrl, videoUrl: d.videoUrl, idDocUrl: d.idDocUrl, ijazahDocUrl: d.ijazahDocUrl, yearsExp: d.yearsExp,
-      specializations: d.specializations, languages: d.languages, availableDays: d.availableDays, hourlyRate: d.hourlyRate, trialRate: d.trialRate });
+      specializations: d.specializations, languages: d.languages, availableDays: d.availableDays, hourlyRate: d.hourlyRate, trialRate: d.trialRate,
+      allowLocalPricing: d.allowLocalPricing, localHourlyRate: d.localHourlyRate, localTrialRate: d.localTrialRate });
     if (reverify) set('status', 'pending_review');
     Alert.alert(reverify ? 'Submitted for re-verification' : 'Profile updated',
       reverify ? 'Saved — your profile is queued for re-verification and temporarily hidden from new students. Existing bookings continue.' : 'Your changes are live.');
@@ -288,6 +293,28 @@ export function TeacherProfileScreen() {
         <View style={{ height: SPACE.md }} />
         <Lbl>Hourly rate (USD)</Lbl><Inp value={d.hourlyRate} onChangeText={(v) => set('hourlyRate', v)} editable={!isReadOnly} keyboardType="number-pad" />
         <Lbl>Trial rate (USD)</Lbl><Inp value={d.trialRate} onChangeText={(v) => set('trialRate', v)} editable={!isReadOnly} keyboardType="number-pad" />
+
+        {(() => {
+          const localCur = currencyForCountry(d.country).toUpperCase();
+          return (
+            <View style={styles.localBox}>
+              <Pressable onPress={() => { if (!isReadOnly) set('allowLocalPricing', !d.allowLocalPricing); }} style={styles.localToggle}>
+                <Ionicons name={d.allowLocalPricing ? 'checkbox' : 'square-outline'} size={20} color={d.allowLocalPricing ? C.forest : C.muted} />
+                <Text style={styles.localToggleText}>Enable local pricing{d.country ? ` for students in ${d.country}` : ''}{localCur !== 'USD' ? ` (${localCur})` : ''}</Text>
+              </Pressable>
+              <Text style={styles.localNote}>Offer a discounted rate in your local currency to verified students in your country. International students keep the USD price above.</Text>
+              {d.allowLocalPricing && localCur !== 'USD' && (
+                <>
+                  <Lbl>Local hourly rate ({localCur})</Lbl><Inp value={d.localHourlyRate} onChangeText={(v) => set('localHourlyRate', v)} editable={!isReadOnly} keyboardType="number-pad" />
+                  <Lbl>Local trial rate ({localCur})</Lbl><Inp value={d.localTrialRate} onChangeText={(v) => set('localTrialRate', v)} editable={!isReadOnly} keyboardType="number-pad" />
+                </>
+              )}
+              {d.allowLocalPricing && localCur === 'USD' && (
+                <Text style={styles.localWarn}>Set your country above to choose a local currency.</Text>
+              )}
+            </View>
+          );
+        })()}
         <Text style={styles.note}>Availability and rates update instantly.</Text>
       </Section>
 
@@ -489,6 +516,11 @@ const styles = StyleSheet.create({
   select: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: C.white, borderWidth: 1, borderColor: C.borderSoft, borderRadius: RADIUS.md, paddingHorizontal: 14, paddingVertical: 13 },
   selectText: { fontFamily: FONT.body, fontSize: 15, color: C.ink },
   note: { fontFamily: FONT.body, fontSize: 12, color: C.muted, marginTop: 10, lineHeight: 17 },
+  localBox: { marginTop: 14, padding: 14, borderRadius: RADIUS.md, borderWidth: 1, borderColor: C.borderSoft, backgroundColor: C.cream },
+  localToggle: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  localToggleText: { flex: 1, fontFamily: FONT.bodyBold, fontSize: 13.5, color: C.ink, lineHeight: 18 },
+  localNote: { fontFamily: FONT.body, fontSize: 12, color: C.muted, marginTop: 6, lineHeight: 17 },
+  localWarn: { fontFamily: FONT.bodyMed, fontSize: 12, color: '#B4502E', marginTop: 8 },
 
   chipsWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   chip: { flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 999, paddingHorizontal: 16, paddingVertical: 10 },

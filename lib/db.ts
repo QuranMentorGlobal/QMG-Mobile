@@ -950,6 +950,7 @@ export interface TeacherProfileData {
   bio: string; welcome: string; photoUrl: string;
   yearsExp: string; ijazah: boolean; specializations: string[]; languages: string[]; availableDays: string[];
   hourlyRate: string; trialRate: string;
+  allowLocalPricing: boolean; localHourlyRate: string; localTrialRate: string;
   videoUrl: string; idDocUrl: string; ijazahDocUrl: string;
   flags: { email_verified: boolean; phone_verified: boolean; identity_verified: boolean; quran_mentor_verified: boolean; ijazah_verified: boolean };
   notify: { notify_bookings: boolean; notify_messages: boolean; notify_payouts: boolean; notify_marketing: boolean };
@@ -968,6 +969,7 @@ export async function fetchTeacherProfile(uid: string): Promise<TeacherProfileDa
       yearsExp: t.years_experience != null ? String(t.years_experience) : '', ijazah: !!t.ijazah_verified || !!t.ijazah_document_url,
       specializations: t.specializations || [], languages: t.teaching_languages || [], availableDays: t.available_days || [],
       hourlyRate: t.hourly_rate_usd != null ? String(t.hourly_rate_usd) : '', trialRate: t.trial_rate_usd != null ? String(t.trial_rate_usd) : '',
+      allowLocalPricing: !!t.allow_local_pricing, localHourlyRate: t.local_hourly_rate != null ? String(t.local_hourly_rate) : '', localTrialRate: t.local_trial_rate != null ? String(t.local_trial_rate) : '',
       videoUrl: t.intro_video_url || '', idDocUrl: t.identity_document_url || '', ijazahDocUrl: t.ijazah_document_url || '',
       flags: {
         email_verified: !!t.email_verified, phone_verified: !!t.phone_verified, identity_verified: !!t.identity_verified,
@@ -985,6 +987,7 @@ export async function saveTeacherProfile(args: {
   uid: string; tpId: string; reverify: boolean; changedFields: string[];
   firstName: string; lastName: string; gender: string; country: string; phone: string; bio: string; welcome: string; photoUrl: string;
   yearsExp: string; specializations: string[]; languages: string[]; availableDays: string[]; hourlyRate: string; trialRate: string;
+  allowLocalPricing: boolean; localHourlyRate: string; localTrialRate: string; localCurrency: string;
   videoUrl: string; idDocUrl: string; ijazahDocUrl: string;
 }): Promise<{ ok: boolean; error?: string }> {
   return safe(async () => {
@@ -997,6 +1000,10 @@ export async function saveTeacherProfile(args: {
       user_id: args.uid, years_experience: Number(args.yearsExp) || 0, specializations: args.specializations,
       teaching_languages: args.languages, available_days: args.availableDays,
       hourly_rate_usd: Number(args.hourlyRate) || 0, trial_rate_usd: Number(args.trialRate) || 0,
+      allow_local_pricing: args.allowLocalPricing,
+      local_currency: args.allowLocalPricing ? (args.localCurrency || null) : null,
+      local_hourly_rate: args.allowLocalPricing ? (Number(args.localHourlyRate) || 0) : null,
+      local_trial_rate: args.allowLocalPricing ? (Number(args.localTrialRate) || 0) : null,
       profile_photo_url: args.photoUrl,
     };
     if (args.videoUrl) tp.intro_video_url = args.videoUrl;
