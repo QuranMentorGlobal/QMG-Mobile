@@ -7,7 +7,6 @@
 import { useCallback, useMemo, useState } from 'react';
 import { Alert, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { formatMoneySync as money, useDisplayCurrency } from '@/lib/pricing/useDisplayCurrency';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { Screen, Loading, FilterChips } from '@/components/ui';
@@ -33,7 +32,6 @@ const TYPE_TABS: { key: Exclude<TabKey, 'completed'>; label: string; icon: keyof
 
 export default function TeacherCourses() {
   const { session } = useAuth();
-  useDisplayCurrency(); // subscribe so prices re-render once the viewer's currency resolves
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<CourseStudio | null>(null);
@@ -250,7 +248,7 @@ function CourseCard({ c, busy, closed, onEdit, onVideos, onToggle, onDelete, onC
       <View style={{ padding: SPACE.md }}>
         <Text style={styles.cardTitle}>{c.title}</Text>
         <Text style={styles.cardMeta}>{[c.category || 'Course', 'All levels', `${c.duration_mins ?? 0} min`].join(' · ')}</Text>
-        <Text style={styles.cardPrice}>{c.is_free ? 'Free' : money(c.price_usd ?? 0)}</Text>
+        <Text style={styles.cardPrice}>{c.is_free ? 'Free' : `$${c.price_usd ?? 0}`}</Text>
 
         <View style={styles.miniRow}>
           <View style={styles.miniStat}><Text style={styles.miniNum}>{c.enrollments}</Text><Text style={styles.miniLbl}>Students</Text></View>

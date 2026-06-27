@@ -20,7 +20,7 @@ import {
 import { C, FONT, RADIUS, SHADOW, SPACE } from '@/lib/theme';
 
 const PAYOUT_SETTINGS_URL = 'https://muddarris.com/platform/teacher/payout-settings';
-import { formatMoneySync as money, useDisplayCurrency } from '@/lib/pricing/useDisplayCurrency';
+const money = (n: number) => `$${(n ?? 0).toFixed(2)}`;
 const fmtDate = (s: string) => new Date(s).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 
 type SubTab = 'overview' | 'earnings' | 'payouts';
@@ -32,7 +32,6 @@ const SUBTABS = [
 
 export default function TeacherEarnings() {
   const { session } = useAuth();
-  useDisplayCurrency(); // subscribe so prices re-render once the viewer's currency resolves
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<EarningsData | null>(null);

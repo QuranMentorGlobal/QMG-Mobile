@@ -2,7 +2,6 @@
 import { useCallback, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect } from 'expo-router';
-import { formatMoneySync as money, useDisplayCurrency } from '@/lib/pricing/useDisplayCurrency';
 import { Screen, Loading } from '@/components/ui';
 import { Panel, PanelHeader, BarsChart, StatGrid, StatTile, MetricBar } from '@/components/dashboard';
 import { useAuth } from '@/lib/auth';
@@ -11,7 +10,6 @@ import { C, FONT, SPACE } from '@/lib/theme';
 
 export default function TeacherAnalytics() {
   const { session } = useAuth();
-  useDisplayCurrency(); // subscribe so prices re-render once the viewer's currency resolves
   const [loading, setLoading] = useState(true);
   const [dash, setDash] = useState<TeacherDash | null>(null);
   const [trend, setTrend] = useState<MonthCount[]>([]);
@@ -48,7 +46,7 @@ export default function TeacherAnalytics() {
         <StatTile icon="people-outline" value={dash.totalStudents} label="Active Students" tone="green" />
         <StatTile icon="checkmark-done-outline" value={dash.taught} label="Lessons Taught" tone="gold" />
         <StatTile icon="library-outline" value={dash.courses.trial + dash.courses.live + dash.courses.recorded} label="Courses" tone="indigo" />
-        <StatTile icon="cash-outline" value={money(dash.earnings)} label="Net Earnings" tone="green" />
+        <StatTile icon="cash-outline" value={`$${dash.earnings.toFixed(0)}`} label="Net Earnings" tone="green" />
       </StatGrid>
 
       <View style={{ height: SPACE.md }} />
