@@ -16,6 +16,7 @@ import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth';
 import * as Location from 'expo-location';
 import { useDisplayCurrency, resetDisplayCurrency } from '@/lib/pricing/useDisplayCurrency';
+import { resetTeacherPricing } from '@/lib/pricing/useTeacherPricing';
 import { C, FONT, RADIUS, SPACE } from '@/lib/theme';
 
 export function LocationGateBanner({ profileHref }: { profileHref: string }) {
@@ -33,22 +34,33 @@ export function LocationGateBanner({ profileHref }: { profileHref: string }) {
     if (!session?.user) { router.push(profileHref as any); return; }
     setBusy(true); setMsg('');
     let name: string | null = null;
-    // 1) Device GPS (asks permission) → reverse-geocode to country.
+    let iso: string | null = null;
+    let method: 'device' | 'ip' | null = null;
+    // 1) Device GPS (asks permission) → reverse-geocode to country. This is a
+    //    STRONG signal for local-pricing eligibility (location_method = 'device').
     try {
       const perm = await Location.requestForegroundPermissionsAsync();
       if (perm.status === 'granted') {
         const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Low });
         const geo = await Location.reverseGeocodeAsync({ latitude: pos.coords.latitude, longitude: pos.coords.longitude });
         name = geo?.[0]?.country || null;
+        iso = (geo?.[0] as any)?.isoCountryCode || null;
+        if (name || iso) method = 'device';
       }
     } catch { /* fall through to IP */ }
-    // 2) Fallback: IP geolocation (no permission needed).
-    if (!name) {
-      try { const r = await fetch('https://ipapi.co/json/'); const j: any = await r.json(); name = j?.country_name || null; } catch { /* ignore */ }
+    // 2) Fallback: IP geolocation (no permission). Weak eligibility signal.
+    if (!name && !iso) {
+      try {
+        const r = await fetch('https://ipapi.co/json/'); const j: any = await r.json();
+        name = j?.country_name || null; iso = j?.country_code || null;
+        if (name || iso) method = 'ip';
+      } catch { /* ignore */ }
     }
-    if (name && session?.user) {
-      const { error } = await (supabase as any).from('profiles').update({ country: name }).eq('id', session.user.id);
-      if (!error) { resetDisplayCurrency(); setHidden(true); setBusy(false); return; }
+    if ((name || iso) && session?.user) {
+      const { error } = await (supabase as any).from('profiles')
+        .update({ country: name || iso, location_country: iso || name, location_method: method })
+        .eq('id', session.user.id);
+      if (!error) { resetDisplayCurrency(); resetTeacherPricing(); setHidden(true); setBusy(false); return; }
     }
     setBusy(false);
     setMsg('Couldn’t detect — please set it in your profile.');
