@@ -1,25 +1,22 @@
-# Help Center (gap #5) — browsable articles on mobile
+# Audit loose ends — attendance email (#6) + mark-lesson-live (#2 minor)
 
-Web had a full Help Center (articles + categories); mobile had only the ticket form.
-This ports it. JS-only — ships over OTA. Run `npx tsc --noEmit` first.
+JS-only — ships over OTA. Run `npx tsc --noEmit` first.
 
-## New
-- `lib/help/content.ts` — the shared knowledge base, copied VERBATIM from web
-  (single source of truth: ROLE_HUBS, CATEGORIES, ~25 ARTICLES/role, search helpers).
-  When you update help content on web, re-copy this one file to keep them identical.
-- `components/HelpCenter.tsx` — the browser: search, popular, categories, and full
-  article view (overview, numbered steps, FAQs, troubleshooting, related links).
-- `app/{student,teacher,parent}/help-center.tsx` — role routes. Accept a `?slug=`
-  param to deep-link an article.
+## #6 — attendance email fan-out (was the real gap)
+Mobile already sent IN-APP notifications to student + parents on every mark; what
+was missing vs web was the EMAIL fan-out for the meaningful statuses.
+- `lib/attendanceActions.ts` — recordAttendance now POSTs to
+  `${API_BASE}/api/attendance/notify` for absent/late/excused (fire-and-forget),
+  exactly like web's src/lib/attendance.ts. Added optional `courseTitle` to opts.
+- `app/teacher/attendance.tsx` — passes `courseTitle` from the row into the mark.
+(Note: `attendance/remind` is a server cron, not a UI feature — correctly N/A on mobile.)
 
-## Changed
-- `components/SupportScreen.tsx` — adds a "Browse the Help Center" entry, and
-  RESTORES the AI support-assistant source links (each answer now links to the
-  article it came from, opening it in the native Help Center).
-  **Supersedes the SupportScreen.tsx in the ai-and-www-fix batch.**
-- `app/teacher/help.tsx` — "Browse all help articles" now opens the native Help
-  Center instead of the external website.
+## #2 minor — teacher marks lesson live on join
+Web sets `lessons.status='live'` when the TEACHER joins (teacher only). Mobile opened
+the room without it.
+- `lib/lessonsActions.ts` — added `bookingId` to the Session type + a
+  `markLessonLive(bookingId)` helper (updates lessons.status='live' by booking).
+- `app/teacher/lessons.tsx` — the teacher Join now calls markLessonLive before
+  opening the room. Student/parent joins do NOT mark live (matches web).
 
-## Note
-This matches web behavior. The article `icon` keys in content.ts reference web's
-icon set and are simply ignored on mobile (cosmetic) — no mapping needed.
+This closes every item from the web-vs-mobile audit.

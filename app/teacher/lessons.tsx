@@ -10,7 +10,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Screen, Loading } from '@/components/ui';
 import { Initials } from '@/components/dashboard';
 import { useAuth } from '@/lib/auth';
-import { fetchSchedule, type Session } from '@/lib/lessonsActions';
+import { fetchSchedule, type Session, markLessonLive } from '@/lib/lessonsActions';
 import { C, FONT, RADIUS, SHADOW, SPACE } from '@/lib/theme';
 
 const startOfDay = (d: Date) => { const x = new Date(d); x.setHours(0, 0, 0, 0); return x; };
@@ -110,7 +110,7 @@ function LessonCard({ s }: { s: Session }) {
         <Text style={styles.when}>{fmtDay(s.dateISO)} · {fmtTime(s.dateISO)} · {s.durationMins} min</Text>
       </View>
       {canJoin ? (
-        <Pressable onPress={() => Linking.openURL(s.joinUrl!)}>
+        <Pressable onPress={() => { markLessonLive(s.bookingId); Linking.openURL(s.joinUrl!); }}>
           <LinearGradient colors={['#166534', '#C9A227']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.joinBtn}>
             <Text style={styles.joinText}>Join</Text>
           </LinearGradient>

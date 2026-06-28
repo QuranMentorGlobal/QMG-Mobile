@@ -8,7 +8,7 @@ import { supabase } from '@/lib/supabase';
 
 export type ScheduleRole = 'student' | 'teacher' | 'parent';
 export interface Session {
-  key: string; dateISO: string; title: string; party: string; partyAvatar: string | null;
+  key: string; bookingId: string; dateISO: string; title: string; party: string; partyAvatar: string | null;
   durationMins: number; joinUrl: string | null; isTrial: boolean;
 }
 
@@ -55,7 +55,7 @@ export async function fetchSchedule(uid: string, role: ScheduleRole = 'teacher')
       const recurring = rec !== '' && !['one_time', 'once', 'none', 'single'].includes(rec);
       const party = nameById[b[otherCol]] || { name: role === 'student' ? 'Teacher' : 'Student', avatar: null };
       const mk = (d: Date) => out.push({
-        key: `${b.id}-${ymd(d)}`, dateISO: d.toISOString(),
+        key: `${b.id}-${ymd(d)}`, bookingId: b.id, dateISO: d.toISOString(),
         title: b.courses?.title || (b.is_trial ? 'Trial Lesson' : 'Quran Lesson'),
         party: party.name, partyAvatar: party.avatar, durationMins: b.duration_mins || 30,
         joinUrl: joinByBooking[b.id] || null, isTrial: !!b.is_trial,
@@ -74,4 +74,13 @@ export async function fetchSchedule(uid: string, role: ScheduleRole = 'teacher')
   } catch {
     return [];
   }
+}
+
+// When the teacher joins, mark the lesson live so the other party sees it (mirrors web,
+// which sets lessons.status='live' on teacher join only). Best-effort, fire-and-forget.
+export async function markLessonLive(bookingId: string): Promise<void> {
+  try {
+    const sb = supabase as any;
+    await sb.from('lessons').update({ status: 'live' }).eq('booking_id', bookingId);
+  } catch {}
 }

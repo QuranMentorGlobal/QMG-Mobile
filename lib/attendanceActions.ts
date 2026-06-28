@@ -2,6 +2,7 @@
 // Reads the teacher's bookings (+ course/student), the lesson_attendance table, and
 // records attendance via a single upsert that also notifies the student + parents.
 import { supabase } from '@/lib/supabase';
+import { API_BASE } from '@/lib/db';
 
 export type AttendanceStatus = 'present' | 'absent' | 'late' | 'excused' | 'cancelled' | 'rescheduled';
 
@@ -53,7 +54,7 @@ function studentBody(s: AttendanceStatus, when: string): { title: string; body: 
 
 export async function recordAttendance(opts: {
   bookingId: string; studentId: string; teacherId: string; status: AttendanceStatus; notes?: string;
-  studentName?: string; dateLabel?: string;
+  studentName?: string; dateLabel?: string; courseTitle?: string;
 }): Promise<boolean> {
   const sb = supabase as any;
   const { bookingId, studentId, teacherId, status } = opts;
@@ -84,6 +85,15 @@ export async function recordAttendance(opts: {
         } catch {}
       }
     } catch {}
+    // Email fan-out for the meaningful statuses (in-app already sent above) — mirrors web.
+    if (status === 'absent' || status === 'late' || status === 'excused') {
+      try {
+        await fetch(`${API_BASE}/api/attendance/notify`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ studentId, status, courseTitle: opts.courseTitle || '', dateLabel: when, notes: opts.notes?.trim() || '' }),
+        });
+      } catch {}
+    }
     return true;
   } catch { return false; }
 }

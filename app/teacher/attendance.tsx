@@ -53,7 +53,7 @@ export default function Attendance() {
   async function mark(r: AttRow, status: AttendanceStatus) {
     if (!r.studentId) return;
     setBusy(r.id + status);
-    const ok = await recordAttendance({ bookingId: r.id, studentId: r.studentId, teacherId: uid, status, notes: draftNotes[r.id] || '', studentName: r.studentName, dateLabel: fmtDate(r.start_date) });
+    const ok = await recordAttendance({ bookingId: r.id, studentId: r.studentId, teacherId: uid, status, notes: draftNotes[r.id] || '', studentName: r.studentName, dateLabel: fmtDate(r.start_date), courseTitle: r.courseTitle });
     if (ok) setData((d) => ({ ...d, att: { ...d.att, [r.id]: status } }));
     setBusy(null);
   }
