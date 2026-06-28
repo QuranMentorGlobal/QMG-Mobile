@@ -87,9 +87,9 @@ export function navSectionsForRole(role: Role): NavSection[] {
   }
   if (role === 'parent') {
     return [
-      { title: 'MAIN', items: pick(all, ['Dashboard', 'Children', 'Bookings', 'Courses', 'Lessons', 'Attendance']) },
+      { title: 'MAIN', items: pick(all, ['Dashboard', 'Children', 'Teachers', 'Bookings', 'Courses', 'Lessons', 'Attendance']) },
       { title: 'INSIGHTS', items: pick(all, ['Progress']) },
-      { title: 'ACCOUNT', items: pick(all, ['Billing', 'Teachers', 'Messages', 'Profile']) },
+      { title: 'ACCOUNT', items: pick(all, ['Billing', 'Messages', 'Profile']) },
       { title: 'SUPPORT', items: pick(all, ['Support']) },
     ];
   }

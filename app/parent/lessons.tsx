@@ -9,7 +9,6 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { Screen, Loading } from '@/components/ui';
 import { Initials } from '@/components/dashboard';
-import { ChildSwitcher } from '@/components/ChildSwitcher';
 import { useAuth } from '@/lib/auth';
 import { useParentChild } from '@/lib/parentChild';
 import { fetchParentSchedule, type ParentSession } from '@/lib/parentActions';
@@ -69,7 +68,6 @@ export default function ParentLessons() {
 
   return (
     <Screen>
-      <ChildSwitcher />
       <Text style={styles.h1}>Lessons</Text>
       <Text style={styles.sub}>Your unified schedule across every active class. Join live sessions here.</Text>
 
@@ -201,8 +199,8 @@ function Kpi({ value, label, tone }: { value: number; label: string; tone: 'gold
 }
 
 const styles = StyleSheet.create({
-  h1: { fontFamily: FONT.displayBold, fontSize: 28, color: C.ink },
-  sub: { fontFamily: FONT.body, fontSize: 13, color: C.muted, marginTop: 4, marginBottom: SPACE.md },
+  h1: { fontFamily: FONT.displayBold, fontSize: 28, color: C.ink, textAlign: 'center' },
+  sub: { fontFamily: FONT.body, fontSize: 13, color: C.muted, marginTop: 4, marginBottom: SPACE.md, textAlign: 'center' },
   kpiRow: { flexDirection: 'row', gap: SPACE.sm, marginBottom: SPACE.md },
   kpi: { flex: 1, borderRadius: RADIUS.md, paddingVertical: SPACE.md, alignItems: 'center' },
   kpiValue: { fontFamily: FONT.displayBold, fontSize: 24, color: C.ink },

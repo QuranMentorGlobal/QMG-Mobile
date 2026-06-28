@@ -10,7 +10,6 @@ import { useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Screen, Loading } from '@/components/ui';
 import { BarsChart } from '@/components/dashboard';
-import { ChildSwitcher } from '@/components/ChildSwitcher';
 import { useAuth } from '@/lib/auth';
 import { useParentChild } from '@/lib/parentChild';
 import { fetchStudentAttendance, computeInsights, monthlyRates, type AttRecord } from '@/lib/studentAttendanceActions';
@@ -72,7 +71,6 @@ export default function ParentAttendance() {
 
   return (
     <Screen>
-      <ChildSwitcher />
       <Header />
 
       {/* Dedicated single-child picker (attendance shows exactly one child) */}

@@ -8,7 +8,6 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Screen, Loading } from '@/components/ui';
 import { EmptyCard, Initials } from '@/components/dashboard';
-import { ChildSwitcher } from '@/components/ChildSwitcher';
 import { useAuth } from '@/lib/auth';
 import { useParentChild } from '@/lib/parentChild';
 import { fetchParentProgress, type ParentProgress, type ParentProgressChild } from '@/lib/parentActions';
@@ -34,7 +33,6 @@ export default function ParentProgress() {
 
   return (
     <Screen>
-      <ChildSwitcher />
       <Text style={styles.eyebrow}>FAMILY</Text>
       <Text style={styles.h1}>Progress</Text>
       <Text style={styles.sub}>Track every child's Quran learning progress in one place.</Text>
@@ -123,9 +121,9 @@ function LevelBar({ label, val, max, color }: { label: string; val: number; max:
 }
 
 const styles = StyleSheet.create({
-  eyebrow: { fontFamily: FONT.bodyBold, fontSize: 11, color: C.gold, letterSpacing: 1.2 },
-  h1: { fontFamily: FONT.displayBold, fontSize: 28, color: C.ink, marginTop: 2 },
-  sub: { fontFamily: FONT.body, fontSize: 13, color: C.muted, marginTop: 4, marginBottom: SPACE.md },
+  eyebrow: { fontFamily: FONT.bodyBold, fontSize: 11, color: C.gold, letterSpacing: 1.2, textAlign: 'center' },
+  h1: { fontFamily: FONT.displayBold, fontSize: 28, color: C.ink, marginTop: 2, textAlign: 'center' },
+  sub: { fontFamily: FONT.body, fontSize: 13, color: C.muted, marginTop: 4, marginBottom: SPACE.md, textAlign: 'center' },
   totalsRow: { flexDirection: 'row', gap: SPACE.sm, marginBottom: SPACE.md },
   total: { flex: 1, borderRadius: RADIUS.md, paddingVertical: SPACE.md, paddingHorizontal: 6, alignItems: 'center', gap: 4, borderWidth: 1, borderColor: 'rgba(201,162,39,0.06)' },
   totalValue: { fontFamily: FONT.displayBold, fontSize: 22, color: C.ink },

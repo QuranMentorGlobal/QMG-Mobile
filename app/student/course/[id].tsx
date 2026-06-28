@@ -114,12 +114,11 @@ export default function StudentCourseDetail() {
           <View style={styles.tabBar}>
             {tabs.map((t) => {
               const on = tab === t.key;
-              return on ? (
-                <Pressable key={t.key} onPress={() => setTab(t.key)} style={styles.tabWrap}>
-                  <LinearGradient colors={['#166534', '#C9A227']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.tabOn}><Text style={styles.tabOnText}>{t.label}</Text></LinearGradient>
+              return (
+                <Pressable key={t.key} onPress={() => setTab(t.key)} style={[styles.tab, on && styles.tabActive]}>
+                  {on && <LinearGradient colors={['#166534', '#C9A227']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFill} />}
+                  <Text style={[styles.tabText, on ? styles.tabTextOn : styles.tabTextIdle]}>{t.label}</Text>
                 </Pressable>
-              ) : (
-                <Pressable key={t.key} onPress={() => setTab(t.key)} style={[styles.tabWrap, styles.tabIdle]}><Text style={styles.tabIdleText}>{t.label}</Text></Pressable>
               );
             })}
           </View>
@@ -395,11 +394,11 @@ const styles = StyleSheet.create({
   heroTrack: { height: 6, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.18)', overflow: 'hidden' },
   heroFill: { height: 6, borderRadius: 3, backgroundColor: C.goldLight },
   tabBar: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: SPACE.md },
-  tabWrap: { borderRadius: RADIUS.md, overflow: 'hidden' },
-  tabIdle: { backgroundColor: C.white, borderWidth: 1, borderColor: C.borderSoft, paddingHorizontal: 14, paddingVertical: 9 },
-  tabIdleText: { fontFamily: FONT.bodyBold, fontSize: 13, color: C.forest },
-  tabOn: { paddingHorizontal: 14, paddingVertical: 9 },
-  tabOnText: { fontFamily: FONT.bodyBold, fontSize: 13, color: C.white },
+  tab: { borderRadius: RADIUS.md, overflow: 'hidden', borderWidth: 1, borderColor: C.borderSoft, backgroundColor: C.white, paddingHorizontal: 14, paddingVertical: 9 },
+  tabActive: { borderColor: 'transparent' },
+  tabText: { fontFamily: FONT.bodyBold, fontSize: 13 },
+  tabTextOn: { color: C.white },
+  tabTextIdle: { color: C.forest },
   card: { backgroundColor: C.white, borderRadius: RADIUS.lg, borderWidth: 1, borderColor: C.borderSoft, padding: SPACE.md, marginBottom: SPACE.md, ...SHADOW.card },
   h3: { fontFamily: FONT.displayBold, fontSize: 17, color: C.ink, marginBottom: 8 },
   body: { fontFamily: FONT.body, fontSize: 14, color: C.text, lineHeight: 21 },

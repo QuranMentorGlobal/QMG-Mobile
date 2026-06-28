@@ -11,7 +11,6 @@ import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Screen, Loading, FilterChips, Avatar, StatusBadge } from '@/components/ui';
 import { EmptyCard } from '@/components/dashboard';
-import { ChildSwitcher } from '@/components/ChildSwitcher';
 import { useAuth } from '@/lib/auth';
 import { useParentChild } from '@/lib/parentChild';
 import { fetchParentBookings, type ParentBooking } from '@/lib/parentActions';
@@ -76,7 +75,6 @@ export function ParentBookingsScreen() {
 
   return (
     <Screen>
-      <ChildSwitcher />
       <Text style={styles.h1}>Bookings</Text>
       <Text style={styles.sub}>Oversee every lesson booked for your children. You manage and pay; each child is the student.</Text>
 
@@ -160,8 +158,8 @@ function BookingCard({ b, busy, onCancel }: { b: ParentBooking; busy: boolean; o
 }
 
 const styles = StyleSheet.create({
-  h1: { fontFamily: FONT.displayBold, fontSize: 26, color: C.ink },
-  sub: { fontFamily: FONT.body, fontSize: 13, color: C.muted, marginTop: 4, marginBottom: SPACE.sm },
+  h1: { fontFamily: FONT.displayBold, fontSize: 26, color: C.ink, textAlign: 'center' },
+  sub: { fontFamily: FONT.body, fontSize: 13, color: C.muted, marginTop: 4, marginBottom: SPACE.sm, textAlign: 'center' },
   card: { backgroundColor: C.card, borderRadius: RADIUS.lg, padding: SPACE.md, marginBottom: SPACE.md, ...SHADOW.card },
   cardTop: { flexDirection: 'row', alignItems: 'flex-start', gap: SPACE.md },
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },

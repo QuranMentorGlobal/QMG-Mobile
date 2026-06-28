@@ -105,7 +105,7 @@ export function ChatThread() {
     <SafeAreaView style={{ flex: 1, backgroundColor: C.cream }} edges={['bottom']}>
       <Stack.Screen options={{ headerShown: false }} />
       <LinearGradient colors={G.dark} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
-        <SafeAreaView edges={['top']}>
+        <View>
           <View style={styles.header}>
             <Pressable onPress={() => router.back()} hitSlop={10} style={styles.back}><Ionicons name="chevron-back" size={24} color={C.gold} /></Pressable>
             {peer.avatar ? <Image source={{ uri: peer.avatar }} style={styles.headAvatar} /> : <Initials name={peer.name} size={40} />}
@@ -117,7 +117,7 @@ export function ChatThread() {
               {peer.role ? <Text style={styles.headSub}>{peer.role.charAt(0).toUpperCase() + peer.role.slice(1)}</Text> : null}
             </View>
           </View>
-        </SafeAreaView>
+        </View>
       </LinearGradient>
 
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>

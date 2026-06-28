@@ -9,7 +9,6 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { Screen, Loading, FilterChips } from '@/components/ui';
 import { EmptyCard } from '@/components/dashboard';
-import { ChildSwitcher } from '@/components/ChildSwitcher';
 import { useAuth } from '@/lib/auth';
 import { useParentChild } from '@/lib/parentChild';
 import { fetchParentCourses, type ParentCourse, type ParentCourseBucket } from '@/lib/parentActions';
@@ -58,7 +57,6 @@ export default function ParentCourses() {
 
   return (
     <Screen>
-      <ChildSwitcher />
       <Text style={styles.h1}>Courses</Text>
       <Text style={styles.sub}>Every course your children are enrolled in. Select a child to focus.</Text>
 

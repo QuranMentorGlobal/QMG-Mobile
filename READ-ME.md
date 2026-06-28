@@ -1,15 +1,31 @@
-# Banner green-flash fix (components/dashboard.tsx)
-JS-only → OTA.
+# Batch: tabs, chat space, parent nav/filters, centering
+JS-only → OTA. Run `npx tsc --noEmit`. Upload all.
 
-Cause: each banner showed the REMOTE web image over a charcoal→forest→gold gradient.
-On a cold start the remote images aren't cached, so while each next one downloaded
-(~1s) the green gradient showed through — the "green blink". After one full cycle the
-images were cached, so it went smooth.
+1. COURSE DETAIL tabs (app/student/course/[id].tsx) — the Overview/Lessons/Progress/
+   Resources/Certificate tabs had the old collapsing-gradient + a border-size mismatch
+   (idle had a 1px border, active didn't) → "Progress" sat offset and the active tab
+   went blank. Rebuilt: gradient is a full-bleed layer, idle & active are identical size.
 
-Fix:
-1. The BUNDLED photo (already shipped in the app) now renders as an instant base layer,
-   so there is never green between slides — a real photo always shows immediately.
-2. The web image overlays the bundled one once it loads (still lets you update banners
-   from the website without an app release); if it fails, the bundled photo stays.
-3. All banner URLs are prefetched on mount to warm the cache, so even the web overlay
-   appears without a wait on the first cycle.
+2. COURSE LIST tabs (app/student/courses.tsx, app/parent/courses.tsx) — these already
+   carry the bulletproof fix (active gradient can't collapse). Included so you have them
+   if the earlier batch wasn't uploaded — this is the version that fixes the missing/
+   white active tile.
+
+3. CHAT green space (components/ChatThread.tsx) — the thread header added a second
+   status-bar inset under the app header, creating the green gap. Removed it; the
+   contact row now sits right under the greeting, giving more room for chat history.
+
+4. PARENT NAV order (lib/nav.ts) — Teachers moved into MAIN as the 3rd item:
+   Dashboard · Children · Teachers · Bookings · Courses · Lessons · Attendance.
+
+5. CHILD FILTERS removed (parent attendance, progress, lessons, courses, bookings) —
+   the ChildSwitcher pill row is gone; pages show combined data (the context default).
+
+6. PAGE TITLES centered on the remaining parent pages (progress, lessons, bookings;
+   attendance/courses were already centered).
+
+## Still to do — flagged, not in this batch
+PARENT PROFILE rebuild: it currently uses the bare shared ProfileScreen (read-only
+email/country + notifications). Student & teacher profiles are full editable pages.
+I'll rebuild the parent profile to match — it's a ~300-line page and I want to mirror
+your web parent profile properly, so it's the next focused batch.
