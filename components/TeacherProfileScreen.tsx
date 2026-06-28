@@ -13,6 +13,7 @@ import * as DocumentPicker from 'expo-document-picker';
 import { currencyForCountry } from '@/lib/pricing/currency';
 import { AIImprove } from '@/components/AIImprove';
 import { aiStatus } from '@/lib/db';
+import { resetDisplayCurrency } from '@/lib/pricing/useDisplayCurrency';
 import { fetchTeacherProfile, saveTeacherProfile, saveNotifyPrefs, updatePassword, uploadVerificationDoc, type TeacherProfileData } from '@/lib/db';
 import { C, FONT, RADIUS, SHADOW, SPACE } from '@/lib/theme';
 import { MediaPickerButton } from '@/components/MediaPickerButton';
@@ -129,6 +130,7 @@ export function TeacherProfileScreen() {
     });
     setSaving(false);
     if (!res.ok) { Alert.alert('Could not save', res.error ?? ''); return; }
+    resetDisplayCurrency();
     setOrig({ firstName: d.firstName, lastName: d.lastName, phone: d.phone, country: d.country, bio: d.bio, welcome: d.welcome,
       photoUrl: d.photoUrl, videoUrl: d.videoUrl, idDocUrl: d.idDocUrl, ijazahDocUrl: d.ijazahDocUrl, yearsExp: d.yearsExp,
       specializations: d.specializations, languages: d.languages, availableDays: d.availableDays, hourlyRate: d.hourlyRate, trialRate: d.trialRate,

@@ -252,9 +252,9 @@ const styles = StyleSheet.create({
 
 export function PageTitle({ title, subtitle }: { title: string; subtitle?: string }) {
   return (
-    <View style={{ marginTop: SPACE.xs, marginBottom: SPACE.md }}>
-      <Text style={{ fontFamily: FONT.displayBold, fontSize: 24, color: C.ink }}>{title}</Text>
-      {subtitle ? <Text style={{ fontFamily: FONT.body, fontSize: 13, color: C.muted, marginTop: 2 }}>{subtitle}</Text> : null}
+    <View style={{ marginTop: SPACE.xs, marginBottom: SPACE.md, alignItems: 'center' }}>
+      <Text style={{ fontFamily: FONT.displayBold, fontSize: 24, color: C.ink, textAlign: 'center' }}>{title}</Text>
+      {subtitle ? <Text style={{ fontFamily: FONT.body, fontSize: 13, color: C.muted, marginTop: 2, textAlign: 'center' }}>{subtitle}</Text> : null}
     </View>
   );
 }

@@ -237,7 +237,7 @@ function TeacherCard({ t, onProfile, onCourses }: { t: PublicTeacher; onProfile:
 const styles = StyleSheet.create({
   h1: { fontFamily: FONT.displayBold, fontSize: 28, color: C.ink, textAlign: 'center', marginTop: SPACE.xs },
   sub: { fontFamily: FONT.body, fontSize: 13, color: C.muted, textAlign: 'center', marginTop: 4, marginBottom: SPACE.md },
-  aiCard: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: C.card, borderRadius: RADIUS.lg, padding: SPACE.md, marginBottom: SPACE.md, ...SHADOW.card },
+  aiCard: { backgroundColor: C.card, borderRadius: RADIUS.lg, padding: SPACE.md, marginBottom: SPACE.md, ...SHADOW.card },
   aiIcon: { width: 40, height: 40, borderRadius: 20, backgroundColor: C.tintGold, alignItems: 'center', justifyContent: 'center' },
   aiTitle: { fontFamily: FONT.displayBold, fontSize: 15, color: C.ink },
   aiBody: { fontFamily: FONT.body, fontSize: 12, color: C.muted, marginTop: 2 },

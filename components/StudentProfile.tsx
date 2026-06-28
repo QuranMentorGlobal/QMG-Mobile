@@ -9,6 +9,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Screen, Loading } from '@/components/ui';
 import { useAuth } from '@/lib/auth';
 import { fetchStudentProfile, saveStudentProfile, saveNotifPrefs, type StudentProfileData } from '@/lib/studentProfileActions';
+import { resetDisplayCurrency } from '@/lib/pricing/useDisplayCurrency';
 import { C, FONT, G, RADIUS, SHADOW, SPACE } from '@/lib/theme';
 
 const COUNTRIES = ['Pakistan', 'United Kingdom', 'United States', 'UAE', 'Saudi Arabia', 'Canada', 'Australia', 'Bangladesh', 'India', 'Malaysia', 'Indonesia', 'Egypt', 'Other'];
@@ -52,6 +53,7 @@ export function StudentProfile() {
     if (!d!.firstName.trim() || !d!.lastName.trim()) { flash('First and last name are required.'); return; }
     setSaving(true);
     const ok = await saveStudentProfile(uid, d!);
+    if (ok) resetDisplayCurrency();
     setSaving(false);
     flash(ok ? 'Profile saved!' : 'Save failed, try again.');
   }
