@@ -30,6 +30,10 @@ export default function ParentDashboard() {
 
   const months = lastSix();
 
+  const totalUpcoming = Object.values(d.childStats).reduce((s, x) => s + (x?.upcoming ?? 0), 0);
+  const attVals = d.children.map((c) => d.childStats[c.id]?.attendance ?? 0);
+  const overallAtt = attVals.length ? Math.round(attVals.reduce((a, b) => a + b, 0) / attVals.length) : 0;
+  const hasAtt = attVals.some((v) => v > 0);
   return (
     <Screen>
       <LocationGateBanner profileHref="/parent/profile" />
@@ -58,6 +62,39 @@ export default function ParentDashboard() {
         <BarsChart data={months.map((m) => ({ label: m, value: 0 }))} />
       </Panel>
 
+      {d.children.length > 0 && (
+        <Panel>
+          <PanelHeader icon="checkbox-outline" title="Attendance by Child" subtitle="Overall attendance rates" />
+          <View style={styles.attByChildRow}>
+            <View style={styles.donut}>
+              <Text style={styles.donutVal}>{hasAtt ? `${overallAtt}%` : '—'}</Text>
+              <Text style={styles.donutLabel}>overall</Text>
+            </View>
+            <View style={{ flex: 1, gap: 12 }}>
+              {d.children.map((c) => {
+                const a = d.childStats[c.id]?.attendance ?? 0;
+                return (
+                  <View key={c.id}>
+                    <View style={styles.attTop}>
+                      <Text style={styles.attName} numberOfLines={1}>{[c.first_name, c.last_name].filter(Boolean).join(' ') || 'Child'}</Text>
+                      <Text style={[styles.attPct, { color: a >= 50 ? C.success : '#DC2626' }]}>{a}%</Text>
+                    </View>
+                    <View style={styles.attTrack}><View style={[styles.attFill, { width: `${a}%`, backgroundColor: a >= 50 ? C.success : '#DC2626' }]} /></View>
+                  </View>
+                );
+              })}
+            </View>
+          </View>
+        </Panel>
+      )}
+
+      <View style={styles.kpiGrid}>
+        <DashKpi icon="cloud-upload-outline" value={String(d.recorded)} label="Recorded Courses" tint="rgba(79,70,229,0.08)" ic={C.indigo} />
+        <DashKpi icon="videocam-outline" value={String(d.live)} label="Live Courses" tint="rgba(79,70,229,0.08)" ic={C.indigo} />
+        <DashKpi icon="calendar-outline" value={String(totalUpcoming)} label="Upcoming Lessons" tint="rgba(22,163,74,0.08)" ic={C.success} />
+        <DashKpi icon="card-outline" value={`$${d.spentThisMonth.toFixed(2)}`} label="Spend This Month" tint="rgba(201,162,39,0.10)" ic={C.gold} />
+      </View>
+
       <SectionHeader title="Children's Progress" actionLabel="Manage" onAction={() => router.push('/parent/children')} />
       {d.children.length === 0 ? (
         <EmptyCard icon="people-outline" title="No children linked yet" body="Link a child's account to track their progress." ctaLabel="Browse Teachers" onCta={() => router.push('/parent/teachers')} />
@@ -70,6 +107,16 @@ export default function ParentDashboard() {
 
       <QuoteCard icon="happy-outline" eyebrow="HADITH" arabic="كُلُّ مَوْلُودٍ يُولَدُ عَلَى الْفِطْرَةِ" quote="Every child is born upon the fitrah (natural disposition). It is the parents who shape them." source="Sahih Al-Bukhari & Muslim" active={1} />
     </Screen>
+  );
+}
+
+function DashKpi({ icon, value, label, tint, ic }: { icon: keyof typeof Ionicons.glyphMap; value: string; label: string; tint: string; ic: string }) {
+  return (
+    <View style={[styles.kpi, { backgroundColor: tint }]}>
+      <View style={styles.kpiIcon}><Ionicons name={icon} size={18} color={ic} /></View>
+      <Text style={styles.kpiValue}>{value}</Text>
+      <Text style={styles.kpiLabel}>{label}</Text>
+    </View>
   );
 }
 
@@ -121,6 +168,20 @@ function lastSix(): string[] {
 }
 
 const styles = StyleSheet.create({
+  attByChildRow: { flexDirection: 'row', alignItems: 'center', gap: 16 },
+  donut: { width: 96, height: 96, borderRadius: 48, borderWidth: 10, borderColor: '#EFEAD9', alignItems: 'center', justifyContent: 'center' },
+  donutVal: { fontFamily: FONT.displayBold, fontSize: 20, color: C.ink },
+  donutLabel: { fontFamily: FONT.body, fontSize: 11, color: C.muted },
+  attTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
+  attName: { fontFamily: FONT.bodySemi, fontSize: 13.5, color: C.ink, flex: 1 },
+  attPct: { fontFamily: FONT.bodyBold, fontSize: 13.5 },
+  attTrack: { height: 6, borderRadius: 3, backgroundColor: '#EFEAD9', overflow: 'hidden' },
+  attFill: { height: 6, borderRadius: 3 },
+  kpiGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', marginTop: SPACE.md },
+  kpi: { width: '48.5%', borderRadius: RADIUS.lg, padding: SPACE.md, marginBottom: SPACE.sm, gap: 6 },
+  kpiIcon: { width: 36, height: 36, borderRadius: RADIUS.md, backgroundColor: 'rgba(255,255,255,0.6)', alignItems: 'center', justifyContent: 'center' },
+  kpiValue: { fontFamily: FONT.displayBold, fontSize: 24, color: C.ink, marginTop: 4 },
+  kpiLabel: { fontFamily: FONT.body, fontSize: 12.5, color: C.muted },
   childTop: { flexDirection: 'row', alignItems: 'center', gap: SPACE.md, marginBottom: SPACE.md },
   childName: { fontFamily: FONT.bodyBold, fontSize: 16, color: C.ink },
   childEmail: { fontFamily: FONT.body, fontSize: 12, color: C.muted, marginTop: 2 },

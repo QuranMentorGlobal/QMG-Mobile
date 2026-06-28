@@ -285,28 +285,50 @@ export async function fetchParentDash(uid: string): Promise<ParentDash> {
   const children = await fetchChildren(uid);
   const ids = children.map((c) => c.id);
   if (!ids.length) return { children, lessonsThisMonth: 0, spentThisMonth: 0, childStats: {}, recorded: 0, live: 0 };
-
+  const sb = supabase as any;
   const start = new Date(); start.setDate(1); start.setHours(0, 0, 0, 0);
-
   const lessonsThisMonth = await safe(async () => {
-    const { count } = await (supabase as any).from('lessons').select('id', { count: 'exact', head: true })
+    const { count } = await sb.from('lessons').select('id', { count: 'exact', head: true })
       .in('student_id', ids).eq('status', 'completed').gte('scheduled_at', start.toISOString());
     return count ?? 0;
   }, 0);
-
+  const spentThisMonth = await safe(async () => {
+    const { data } = await sb.from('payments').select('gross_amount_usd').in('student_id', ids).eq('status', 'succeeded').gte('created_at', start.toISOString());
+    return (data ?? []).reduce((s: number, p: any) => s + Number(p.gross_amount_usd ?? 0), 0);
+  }, 0);
+  const { recorded, live } = await safe(async () => {
+    const { data: enr } = await sb.from('enrollments').select('course_id, product_type, status').in('student_id', ids);
+    const rows = (enr ?? []) as any[];
+    const courseIds = Array.from(new Set(rows.map((e) => e.course_id).filter(Boolean)));
+    const ctypeById: Record<string, string> = {};
+    if (courseIds.length) {
+      const { data: cs } = await sb.from('courses').select('id, product_type').in('id', courseIds);
+      (cs ?? []).forEach((c: any) => { ctypeById[c.id] = c.product_type; });
+    }
+    let r = 0, l = 0;
+    for (const e of rows) {
+      const raw = ctypeById[e.course_id] || e.product_type || 'recorded';
+      const t = raw === 'long' ? 'program' : (['trial', 'recorded', 'live', 'program'].includes(raw) ? raw : 'recorded');
+      if (t === 'recorded') r++; else if (t === 'live') l++;
+    }
+    return { recorded: r, live: l };
+  }, { recorded: 0, live: 0 });
   const childStats = await safe(async () => {
     const out: Record<string, { done: number; upcoming: number; attendance: number }> = {};
     for (const c of children) {
-      const [{ count: done }, { count: up }] = await Promise.all([
-        (supabase as any).from('lessons').select('id', { count: 'exact', head: true }).eq('student_id', c.id).eq('status', 'completed'),
-        (supabase as any).from('lessons').select('id', { count: 'exact', head: true }).eq('student_id', c.id).in('status', ['scheduled', 'live']).gte('scheduled_at', new Date().toISOString()),
+      const [{ count: done }, { count: up }, { data: att }] = await Promise.all([
+        sb.from('lessons').select('id', { count: 'exact', head: true }).eq('student_id', c.id).eq('status', 'completed'),
+        sb.from('lessons').select('id', { count: 'exact', head: true }).eq('student_id', c.id).in('status', ['scheduled', 'live']).gte('scheduled_at', new Date().toISOString()),
+        sb.from('lesson_attendance').select('status').eq('student_id', c.id),
       ]);
-      out[c.id] = { done: done ?? 0, upcoming: up ?? 0, attendance: 0 };
+      const counted = ((att ?? []) as any[]).filter((m) => ['present', 'late', 'absent'].includes(m.status));
+      const good = counted.filter((m) => m.status === 'present' || m.status === 'late').length;
+      const attendance = counted.length > 0 ? Math.round((good / counted.length) * 100) : 0;
+      out[c.id] = { done: done ?? 0, upcoming: up ?? 0, attendance };
     }
     return out;
   }, {});
-
-  return { children, lessonsThisMonth, spentThisMonth: 0, childStats, recorded: 0, live: 0 };
+  return { children, lessonsThisMonth, spentThisMonth, childStats, recorded, live };
 }
 
 // ── Student inner pages ─────────────────────────────────────────────────────
