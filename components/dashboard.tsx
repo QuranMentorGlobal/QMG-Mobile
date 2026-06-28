@@ -89,6 +89,11 @@ export function BannerSlider({ role }: { role: BannerRole }) {
     timer.current = setInterval(() => setCurrent((c) => (c + 1) % list.length), 4500);
     return () => { if (timer.current) clearInterval(timer.current); };
   }, [list.length]);
+  // Warm the network cache for every banner up front so rotating to the next slide
+  // never waits on a download (the cause of the one-time green flash on cold start).
+  useEffect(() => {
+    list.forEach((_, i) => { Image.prefetch(`https://www.muddarris.com/banners/${role}-${i + 1}.png`).catch(() => {}); });
+  }, [role, list.length]);
   // Reset the error flag whenever the slide changes so each photo gets a fresh try.
   useEffect(() => { setImgError(false); }, [current]);
 
@@ -105,14 +110,21 @@ export function BannerSlider({ role }: { role: BannerRole }) {
   }, [webUrl]);
   return (
     <View style={[styles.banner, { aspectRatio: aspect }]}>
-      {/* charcoal -> forest -> gold fallback shows if the image is slow/unavailable */}
+      {/* charcoal -> forest -> gold base, only ever visible if BOTH images fail */}
       <LinearGradient colors={G.signature} locations={G.signatureLocations} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
-      <Image
-        source={imgError ? slide.img : { uri: webUrl }}
-        style={StyleSheet.absoluteFill}
-        resizeMode="cover"
-        onError={() => setImgError(true)}
-      />
+      {/* Bundled photo — ships in the app, renders instantly, so there is no green
+          flash while the (identical) web image downloads on the first cycle. */}
+      <Image source={slide.img} style={StyleSheet.absoluteFill} resizeMode="cover" />
+      {/* Web image overlays the bundled one once it loads (lets the website update
+          banners without an app release). If it fails, the bundled photo stays. */}
+      {!imgError && (
+        <Image
+          source={{ uri: webUrl }}
+          style={StyleSheet.absoluteFill}
+          resizeMode="cover"
+          onError={() => setImgError(true)}
+        />
+      )}
       {/* very light left wash — only enough to keep the text readable */}
       <LinearGradient
         colors={['rgba(17,17,17,0.55)', 'rgba(17,17,17,0.18)', 'rgba(17,17,17,0)']}
