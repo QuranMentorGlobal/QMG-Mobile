@@ -1,35 +1,27 @@
-# UI + currency fixes (batch 1 of the screenshot review)
+# UI + currency fixes — COMPLETE (supersedes ui-currency-fixes-batch)
+Upload all 6. JS-only → OTA. Run `npx tsc --noEmit` first.
 
-JS-only — OTA. Run `npx tsc --noEmit` first.
+## Courses screen — root causes found from your screenshots
+1. **Active tab showed BLANK/white (not gradient).** The active tile wrapped its
+   content in a LinearGradient that collapsed to zero height — so the active tab
+   (Completed in your shot, Recorded in the other) rendered invisible, which ALSO
+   left the empty gap that made the grid look jagged. Rebuilt the tile: the
+   gradient is now an absolute-fill layer behind the content over a min-height
+   tile, so it CANNOT collapse. (student + parent)
+2. **Tabs now match web layout & sizing:** icon left · label centered · count
+   right, all tiles equal height (clean 2×2 + full-width Completed). (student + parent)
+3. **Stat cards (Enrolled / In Progress / Completed) looked like distorted nested
+   boxes.** Cause: a translucent tint + drop-shadow elevation composites badly on
+   Android. Removed the shadow → flat tinted cards like web. (student)
 
-## Fixed
-1. **AI "Find my best match" overflowed off-screen** (components/TeachersScreen.tsx)
-   The card was `flexDirection:'row'`, so when expanded the form sat BESIDE the
-   header and ran off the right edge. Now a column — form stacks full-width below.
+## Also (from the first review)
+4. AI "Find my best match" no longer overflows off-screen (column, not row).
+5. Teacher prices in wrong currency (AED): profile saves now invalidate the
+   display-currency cache → after Save, prices re-resolve to your country's
+   currency without an app restart. (student + teacher profiles)
+6. Page titles centered on every screen, all roles.
 
-2. **All teacher prices showed in AED even after changing country to UK**
-   (components/StudentProfile.tsx + TeacherProfileScreen.tsx)
-   Root cause: the display-currency is cached once per app session; saving a new
-   country never invalidated that cache, so it stayed on the old currency (AED)
-   until an app restart. Both profile saves now call `resetDisplayCurrency()`.
-   → After uploading: open Profile, make sure country = your country, tap Save.
-     Prices re-resolve to your currency (UK → GBP) without a restart.
-
-3. **Page titles now centered on every screen, all roles** (components/ui.tsx)
-   PageTitle was left-aligned; now centered (Teachers/Courses already used custom
-   centered headers, so those were fine — this fixes Support/Billing/Lessons/etc.).
-
-4. **Course category tabs equal size** (app/student/courses.tsx + app/parent/courses.tsx)
-   Tiles wrapped to uneven heights ("Recorded Courses" = 2 lines). Added a fixed
-   min-height so 1-line and 2-line tiles match → clean 2×2 grid. Active tab already
-   renders the green→gold gradient in both (unchanged).
-
-## Still need from you (couldn't reproduce from code / need specifics)
-- "Active tab becomes white": in the code, active = gradient in BOTH student and
-  parent. I couldn't find a white-active path — which screen/state shows it white?
-- "Course cards distorted": which part looks distorted (the green banner height,
-  the icon, a real banner image stretching)? A close-up helps.
-- "Parent courses should match student": they're already the same TabTile + card
-  structure (parent just adds child badges + child switcher). What specifically
-  differs that you want changed?
-- Teacher pages not matching web — please share those screenshots.
+## Still open
+- Parent courses still lacks the top 3-stat row that student has (needs a small
+  data add) — tell me if you want it added for full parity.
+- The teacher-side pages you mentioned — please share those screenshots.

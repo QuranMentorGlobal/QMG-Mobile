@@ -142,14 +142,12 @@ function TabTile({ active, label, icon, count, onPress, wide }: { active: boolea
       <View style={[styles.tabCount, active && { backgroundColor: 'rgba(255,255,255,0.25)' }]}><Text style={[styles.tabCountText, active && { color: C.white }]}>{count}</Text></View>
     </>
   );
-  if (active) {
-    return (
-      <Pressable onPress={onPress} style={[styles.tabTile, wide && styles.tabWide]}>
-        <LinearGradient colors={['#166534', '#C9A227']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.tabFill}>{inner}</LinearGradient>
-      </Pressable>
-    );
-  }
-  return <Pressable onPress={onPress} style={[styles.tabTile, styles.tabIdle, wide && styles.tabWide]}>{inner}</Pressable>;
+  return (
+    <Pressable onPress={onPress} style={[styles.tabTile, wide && styles.tabWide, !active && styles.tabIdle]}>
+      {active && <LinearGradient colors={['#166534', '#C9A227']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFill} />}
+      <View style={styles.tabContent}>{inner}</View>
+    </Pressable>
+  );
 }
 
 const styles = StyleSheet.create({
@@ -157,15 +155,15 @@ const styles = StyleSheet.create({
   h1: { fontFamily: FONT.displayBold, fontSize: 28, color: C.ink, marginTop: 2, textAlign: 'center' },
   sub: { fontFamily: FONT.body, fontSize: 14, color: C.muted, marginTop: 4, marginBottom: SPACE.md, textAlign: 'center' },
   statRow: { flexDirection: 'row', gap: SPACE.sm, marginBottom: SPACE.md },
-  stat: { flex: 1, borderRadius: RADIUS.lg, paddingVertical: SPACE.md, alignItems: 'center', gap: 3, ...SHADOW.card },
+  stat: { flex: 1, borderRadius: RADIUS.lg, paddingVertical: SPACE.md, alignItems: 'center', gap: 3 },
   statValue: { fontFamily: FONT.displayBold, fontSize: 22, color: C.ink },
   statLabel: { fontFamily: FONT.body, fontSize: 11, color: C.muted },
   tabGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: SPACE.sm },
-  tabTile: { width: '48.5%', borderRadius: RADIUS.md, overflow: 'hidden', marginBottom: SPACE.sm },
+  tabTile: { width: '48.5%', minHeight: 64, borderRadius: RADIUS.md, overflow: 'hidden', marginBottom: SPACE.sm },
   tabWide: { width: '100%' },
-  tabIdle: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, minHeight: 64, backgroundColor: C.white, borderWidth: 1, borderColor: C.borderSoft, paddingVertical: 12, paddingHorizontal: 10 },
-  tabFill: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, minHeight: 64, paddingVertical: 12, paddingHorizontal: 10 },
-  tabLabel: { fontFamily: FONT.bodyBold, fontSize: 13, color: C.accent2, flexShrink: 1, textAlign: 'center' },
+  tabIdle: { backgroundColor: C.white, borderWidth: 1, borderColor: C.borderSoft },
+  tabContent: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 12, paddingHorizontal: 12 },
+  tabLabel: { flex: 1, fontFamily: FONT.bodyBold, fontSize: 13, color: C.accent2, textAlign: 'center' },
   tabCount: { minWidth: 20, height: 20, borderRadius: 10, backgroundColor: C.cream, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 5 },
   tabCountText: { fontFamily: FONT.bodyBold, fontSize: 11, color: C.accent2 },
   empty: { alignItems: 'center', paddingVertical: SPACE.section, gap: 8 },
