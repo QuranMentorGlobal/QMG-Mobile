@@ -103,9 +103,9 @@ export interface Child {
 export async function fetchChildren(parentId: string): Promise<Child[]> {
   const { data: links } = await (supabase as any)
     .from('parent_children')
-    .select('student_id')
+    .select('child_id')
     .eq('parent_id', parentId);
-  const ids = (links ?? []).map((l: any) => l.student_id).filter(Boolean);
+  const ids = (links ?? []).map((l: any) => l.child_id).filter(Boolean);
   if (ids.length === 0) return [];
   const { data } = await (supabase as any)
     .from('profiles')
@@ -581,25 +581,52 @@ export async function fetchTeacherLessonTrend(uid: string): Promise<MonthCount[]
 export interface ParentPayment { id: string; gross_amount_usd: number; created_at: string; childName: string; payment_type: string | null; }
 export interface ParentRefund { id: string; amount_usd: number; reason: string | null; created_at: string; childName: string; }
 
-export async function fetchParentBilling(parentId: string): Promise<{ payments: ParentPayment[]; refunds: ParentRefund[]; total: number; refunded: number }> {
+export interface ParentBillingChild { id: string; name: string; totalSpent: number; activePlans: number; }
+export interface ParentBillingData {
+  payments: ParentPayment[]; refunds: ParentRefund[]; total: number; refunded: number;
+  thisMonth: number; monthlyTotal: number; activePlans: number;
+  monthlySeries: { label: string; amount: number }[];
+  byChild: ParentBillingChild[];
+}
+export async function fetchParentBilling(parentId: string): Promise<ParentBillingData> {
+  const empty: ParentBillingData = { payments: [], refunds: [], total: 0, refunded: 0, thisMonth: 0, monthlyTotal: 0, activePlans: 0, monthlySeries: [], byChild: [] };
   return safe(async () => {
     const kids = await fetchChildren(parentId);
     const ids = kids.map((k) => k.id);
     const nameOf = (id: string) => { const k = kids.find((c) => c.id === id); return k ? [k.first_name, k.last_name].filter(Boolean).join(' ') || 'Child' : 'Child'; };
-    if (!ids.length) return { payments: [], refunds: [], total: 0, refunded: 0 };
-
-    const [{ data: pays }, { data: refs }] = await Promise.all([
-      (supabase as any).from('payments').select('id, gross_amount_usd, created_at, student_id, payment_type').in('student_id', ids).eq('status', 'succeeded').order('created_at', { ascending: false }).limit(60),
+    if (!ids.length) return empty;
+    const [{ data: pays }, { data: refs }, { data: subs }] = await Promise.all([
+      (supabase as any).from('payments').select('id, gross_amount_usd, created_at, student_id, payment_type').in('student_id', ids).eq('status', 'succeeded').order('created_at', { ascending: false }).limit(120),
       (supabase as any).from('booking_refunds').select('id, amount_usd, reason, created_at, student_id').in('student_id', ids).order('created_at', { ascending: false }).limit(40),
+      (supabase as any).from('subscriptions').select('student_id, status, monthly_amount_usd').in('student_id', ids),
     ]);
-    const payments: ParentPayment[] = (pays ?? []).map((p: any) => ({ id: p.id, gross_amount_usd: Number(p.gross_amount_usd ?? 0), created_at: p.created_at, childName: nameOf(p.student_id), payment_type: p.payment_type ?? null }));
+    const rawPays = (pays ?? []) as any[];
+    const payments: ParentPayment[] = rawPays.map((p) => ({ id: p.id, gross_amount_usd: Number(p.gross_amount_usd ?? 0), created_at: p.created_at, childName: nameOf(p.student_id), payment_type: p.payment_type ?? null }));
     const refunds: ParentRefund[] = (refs ?? []).map((r: any) => ({ id: r.id, amount_usd: Number(r.amount_usd ?? 0), reason: r.reason ?? null, created_at: r.created_at, childName: nameOf(r.student_id) }));
-    return {
-      payments, refunds,
-      total: payments.reduce((s, p) => s + p.gross_amount_usd, 0),
-      refunded: refunds.reduce((s, r) => s + r.amount_usd, 0),
-    };
-  }, { payments: [], refunds: [], total: 0, refunded: 0 });
+    const total = payments.reduce((s, p) => s + p.gross_amount_usd, 0);
+    const refunded = refunds.reduce((s, r) => s + r.amount_usd, 0);
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
+    const thisMonth = rawPays.filter((p) => new Date(p.created_at).getTime() >= monthStart).reduce((s, p) => s + Number(p.gross_amount_usd ?? 0), 0);
+    const activeSubs = (subs ?? []).filter((s: any) => s.status === 'active');
+    const activePlans = activeSubs.length;
+    const monthlyTotal = activeSubs.reduce((s: number, x: any) => s + Number(x.monthly_amount_usd ?? 0), 0);
+    const monthlySeries: { label: string; amount: number }[] = [];
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const ms = d.getTime();
+      const me = new Date(now.getFullYear(), now.getMonth() - i + 1, 1).getTime();
+      const amount = rawPays.filter((p) => { const t = new Date(p.created_at).getTime(); return t >= ms && t < me; }).reduce((s, p) => s + Number(p.gross_amount_usd ?? 0), 0);
+      monthlySeries.push({ label: d.toLocaleDateString('en-US', { month: 'short' }), amount });
+    }
+    const byChild: ParentBillingChild[] = kids.map((k) => ({
+      id: k.id,
+      name: [k.first_name, k.last_name].filter(Boolean).join(' ') || 'Child',
+      totalSpent: rawPays.filter((p) => p.student_id === k.id).reduce((s, p) => s + Number(p.gross_amount_usd ?? 0), 0),
+      activePlans: activeSubs.filter((s: any) => s.student_id === k.id).length,
+    }));
+    return { payments, refunds, total, refunded, thisMonth, monthlyTotal, activePlans, monthlySeries, byChild };
+  }, empty);
 }
 
 export interface ChildDetail {

@@ -1,27 +1,30 @@
-# UI + currency fixes — COMPLETE (supersedes ui-currency-fixes-batch)
-Upload all 6. JS-only → OTA. Run `npx tsc --noEmit` first.
+# Parent role fixes — children loading (CRITICAL) + Billing rebuild
+JS-only → OTA. Run `npx tsc --noEmit` first.
 
-## Courses screen — root causes found from your screenshots
-1. **Active tab showed BLANK/white (not gradient).** The active tile wrapped its
-   content in a LinearGradient that collapsed to zero height — so the active tab
-   (Completed in your shot, Recorded in the other) rendered invisible, which ALSO
-   left the empty gap that made the grid look jagged. Rebuilt the tile: the
-   gradient is now an absolute-fill layer behind the content over a min-height
-   tile, so it CANNOT collapse. (student + parent)
-2. **Tabs now match web layout & sizing:** icon left · label centered · count
-   right, all tiles equal height (clean 2×2 + full-width Completed). (student + parent)
-3. **Stat cards (Enrolled / In Progress / Completed) looked like distorted nested
-   boxes.** Cause: a translucent tint + drop-shadow elevation composites badly on
-   Android. Removed the shadow → flat tinted cards like web. (student)
+## 1. CRITICAL: children weren't loading on mobile (web showed 3, app showed 0)
+`fetchChildren` queried the WRONG column: it selected `student_id` from the
+`parent_children` table, but the column is `child_id` (the insert in the same file
+and all of web use `child_id`). So it always returned zero children — which is why
+My Children, Attendance, Progress, the dashboard's Children's Progress, AND Billing
+totals were all empty on mobile while web showed everything.
 
-## Also (from the first review)
-4. AI "Find my best match" no longer overflows off-screen (column, not row).
-5. Teacher prices in wrong currency (AED): profile saves now invalidate the
-   display-currency cache → after Save, prices re-resolve to your country's
-   currency without an app restart. (student + teacher profiles)
-6. Page titles centered on every screen, all roles.
+Fixed in `lib/db.ts` → `fetchChildren` now selects `child_id`. Because the shared
+parent context (parentChild.tsx) and every parent screen use this helper, this one
+fix restores children across My Children, Attendance, Progress, Dashboard and Billing.
 
-## Still open
-- Parent courses still lacks the top 3-stat row that student has (needs a small
-  data add) — tell me if you want it added for full parity.
-- The teacher-side pages you mentioned — please share those screenshots.
+## 2. Parent Billing rebuilt to match web (`app/parent/billing.tsx`)
+Was a basic Total-Spent/Payments/Refunds page. Now mirrors web:
+- "FAMILY ACCOUNT" header
+- Tabs: Overview · By Child · Invoices · History
+- Overview: KPI cards (Total Spent, This Month, Active Plans, Monthly Total),
+  Refunds card, and a 6-month Monthly Spend bar chart (OTA-safe Views, no native lib)
+- By Child: per-child cards (active plans, total spent, Browse teachers)
+- Invoices / History: transaction lists with child badges + amounts
+`fetchParentBilling` in lib/db.ts was extended to compute this-month, monthly
+series, active plans, monthly total, and the per-child breakdown.
+
+## Still to do (next batch)
+- Parent DASHBOARD parity: after this fix the existing sections populate with your
+  children, but web has extra sections mobile lacks — KPI cards (Recorded Courses /
+  Live Courses / Upcoming / Spend This Month) and the "Attendance by Child" donut.
+  I'll add those next.
