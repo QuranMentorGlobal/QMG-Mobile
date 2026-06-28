@@ -158,7 +158,7 @@ const styles = StyleSheet.create({
   stat: { flex: 1, borderRadius: RADIUS.lg, paddingVertical: SPACE.md, alignItems: 'center', gap: 3 },
   statValue: { fontFamily: FONT.displayBold, fontSize: 22, color: C.ink },
   statLabel: { fontFamily: FONT.body, fontSize: 11, color: C.muted },
-  tabGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: SPACE.sm },
+  tabGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
   tabTile: { width: '48.5%', minHeight: 64, borderRadius: RADIUS.md, overflow: 'hidden', marginBottom: SPACE.sm },
   tabWide: { width: '100%' },
   tabIdle: { backgroundColor: C.white, borderWidth: 1, borderColor: C.borderSoft },

@@ -151,7 +151,7 @@ function TabTile({ active, label, icon, count, onPress, wide }: { active: boolea
 const styles = StyleSheet.create({
   h1: { fontFamily: FONT.displayBold, fontSize: 28, color: C.ink },
   sub: { fontFamily: FONT.body, fontSize: 13, color: C.muted, marginTop: 4, marginBottom: SPACE.md },
-  tabGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: SPACE.sm },
+  tabGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
   tabTile: { width: '48.5%', minHeight: 64, borderRadius: RADIUS.md, overflow: 'hidden', marginBottom: SPACE.sm },
   tabWide: { width: '100%' },
   tabIdle: { backgroundColor: C.white, borderWidth: 1, borderColor: C.borderSoft },

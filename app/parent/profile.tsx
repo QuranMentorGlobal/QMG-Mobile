@@ -1,5 +1,5 @@
 // app/parent/profile.tsx
-import { ProfileScreen } from '@/components/ProfileScreen';
+import { ParentProfile } from '@/components/ParentProfile';
 export default function Profile() {
-  return <ProfileScreen />;
+  return <ParentProfile />;
 }
