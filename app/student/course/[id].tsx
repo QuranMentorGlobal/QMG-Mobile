@@ -114,10 +114,15 @@ export default function StudentCourseDetail() {
           <View style={styles.tabBar}>
             {tabs.map((t) => {
               const on = tab === t.key;
-              return (
-                <Pressable key={t.key} onPress={() => setTab(t.key)} style={[styles.tab, on && styles.tabActive]}>
-                  {on && <LinearGradient colors={['#166534', '#C9A227']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFill} />}
-                  <Text style={[styles.tabText, on ? styles.tabTextOn : styles.tabTextIdle]}>{t.label}</Text>
+              return on ? (
+                <Pressable key={t.key} onPress={() => setTab(t.key)} style={styles.tab}>
+                  <LinearGradient colors={['#166534', '#C9A227']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.tabInner}>
+                    <Text style={[styles.tabText, styles.tabTextOn]}>{t.label}</Text>
+                  </LinearGradient>
+                </Pressable>
+              ) : (
+                <Pressable key={t.key} onPress={() => setTab(t.key)} style={[styles.tab, styles.tabIdle]}>
+                  <View style={styles.tabInner}><Text style={[styles.tabText, styles.tabTextIdle]}>{t.label}</Text></View>
                 </Pressable>
               );
             })}
@@ -394,8 +399,9 @@ const styles = StyleSheet.create({
   heroTrack: { height: 6, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.18)', overflow: 'hidden' },
   heroFill: { height: 6, borderRadius: 3, backgroundColor: C.goldLight },
   tabBar: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: SPACE.md },
-  tab: { borderRadius: RADIUS.md, overflow: 'hidden', borderWidth: 1, borderColor: C.borderSoft, backgroundColor: C.white, paddingHorizontal: 14, paddingVertical: 9 },
-  tabActive: { borderColor: 'transparent' },
+  tab: { borderRadius: RADIUS.md, overflow: 'hidden', borderWidth: 1, borderColor: 'transparent' },
+  tabIdle: { backgroundColor: C.white, borderColor: C.borderSoft },
+  tabInner: { paddingHorizontal: 14, paddingVertical: 9 },
   tabText: { fontFamily: FONT.bodyBold, fontSize: 13 },
   tabTextOn: { color: C.white },
   tabTextIdle: { color: C.forest },

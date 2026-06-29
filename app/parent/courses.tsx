@@ -140,9 +140,15 @@ function TabTile({ active, label, icon, count, onPress, wide }: { active: boolea
       </View>
     </>
   );
+  if (active) {
+    return (
+      <Pressable onPress={onPress} style={[styles.tabTile, wide && styles.tabWide]}>
+        <LinearGradient colors={['#166534', '#C9A227']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.tabContent}>{inner}</LinearGradient>
+      </Pressable>
+    );
+  }
   return (
-    <Pressable onPress={onPress} style={[styles.tabTile, wide && styles.tabWide, !active && styles.tabIdle]}>
-      {active && <LinearGradient colors={['#166534', '#C9A227']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFill} />}
+    <Pressable onPress={onPress} style={[styles.tabTile, styles.tabIdle, wide && styles.tabWide]}>
       <View style={styles.tabContent}>{inner}</View>
     </Pressable>
   );
@@ -152,10 +158,10 @@ const styles = StyleSheet.create({
   h1: { fontFamily: FONT.displayBold, fontSize: 28, color: C.ink },
   sub: { fontFamily: FONT.body, fontSize: 13, color: C.muted, marginTop: 4, marginBottom: SPACE.md },
   tabGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
-  tabTile: { width: '48.5%', minHeight: 64, borderRadius: RADIUS.md, overflow: 'hidden', marginBottom: SPACE.sm },
+  tabTile: { width: '48.5%', borderRadius: RADIUS.md, overflow: 'hidden', marginBottom: SPACE.sm, borderWidth: 1, borderColor: 'transparent' },
   tabWide: { width: '100%' },
-  tabIdle: { backgroundColor: C.white, borderWidth: 1, borderColor: C.borderSoft },
-  tabContent: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 12, paddingHorizontal: 12 },
+  tabIdle: { backgroundColor: C.white, borderColor: C.borderSoft },
+  tabContent: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 14, paddingHorizontal: 12, minHeight: 64 },
   tabLabel: { flex: 1, fontFamily: FONT.bodyBold, fontSize: 13, color: C.accent2, textAlign: 'center' },
   tabCount: { minWidth: 20, height: 20, borderRadius: 10, backgroundColor: C.cream, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 5 },
   tabCountText: { fontFamily: FONT.bodyBold, fontSize: 11, color: C.accent2 },
